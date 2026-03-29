@@ -147,20 +147,13 @@ const NOTES_INIT = [
   {id:3,date:"3/26",text:"BHP: Met coal soft → EBITDA下方修正リスク。Cu/Feでオフセット。",ticker:"BHP"},
 ];
 
-const DEFAULT_APPS = [
-  {id:"morning-brief",name:"Morning Brief",desc:"Materials sector research portal",icon:"☀",color:"#1A1A1A",internal:true},
-  {id:"kakeibo",name:"家計簿",desc:"¥3,000/日予算・支出管理",icon:"¥",color:"#34C759",url:"https://hiroki-ikkyu.github.io/kakeibo/"},
-  {id:"routine-tracker",name:"Routine Tracker",desc:"タイムライン型日課チェック",icon:"◎",color:"#FF9500",url:"https://hiroki-ikkyu.github.io/routine-tracker/"},
-  {id:"study-tracker",name:"Study Tracker",desc:"USCPA・簿記2級の勉強時間記録",icon:"▣",color:"#5856D6",url:"https://hiroki-ikkyu.github.io/study-tracker/"},
-  {id:"goal-manager",name:"Goal Manager",desc:"キャリア・資格・スキル目標管理",icon:"▲",color:"#FF3B30",url:"https://hiroki-ikkyu.github.io/goal-manager/"},
-  {id:"wardrobe-manager",name:"Wardrobe Manager",desc:"服の管理・ウィッシュリスト",icon:"◆",color:"#AF52DE",url:"https://hiroki-ikkyu.github.io/wardrobe-manager/"},
+const FIXED_APPS = [
+  {id:"kakeibo",         name:"家計簿",           icon:"¥",  color:"#34C759", url:"https://hiroki-ikkyu.github.io/kakeibo/"},
+  {id:"routine-tracker", name:"Routine Tracker",  icon:"◎",  color:"#FF9500", url:"https://hiroki-ikkyu.github.io/routine-tracker/"},
+  {id:"study-tracker",   name:"Study Tracker",    icon:"📖", color:"#5856D6", url:"https://hiroki-ikkyu.github.io/study-tracker/"},
+  {id:"goal-manager",    name:"Goal Manager",     icon:"🎯", color:"#FF3B30", url:"https://hiroki-ikkyu.github.io/goal-manager/"},
+  {id:"wardrobe-manager",name:"Wardrobe Manager", icon:"👔", color:"#AF52DE", url:"https://hiroki-ikkyu.github.io/wardrobe-manager/"},
 ];
-
-const ICON_OPTIONS = ["☀","¥","◎","▣","◆","▶","★","♦","⬡","◉","▲","■"];
-const COLOR_OPTIONS = ["#1A1A1A","#34C759","#5856D6","#FF9500","#FF3B30","#007AFF","#FF2D55","#AF52DE"];
-
-function loadApps(){try{const d=localStorage.getItem("ceo-apps");return d?JSON.parse(d):DEFAULT_APPS}catch(e){return DEFAULT_APPS}}
-function saveApps(apps){try{localStorage.setItem("ceo-apps",JSON.stringify(apps))}catch(e){}};
 
 // ════════════════════════════════════════════════════════════════
 // SHARED COMPONENTS
@@ -244,135 +237,122 @@ const Drawer = ({open,onClose,page,onNav}) => (
   </React.Fragment>
 );
 
-const CEOPage = ({onNav}) => {
-  const [apps,setApps] = useState(loadApps);
-  const [adding,setAdding] = useState(false);
-  const [editing,setEditing] = useState(null);
-  const [form,setForm] = useState({name:"",desc:"",url:"",icon:"◆",color:"#34C759"});
-  const [summary,setSummary] = useState(null);
+const CEOPage = () => {
+  const [summary, setSummary] = useState(null);
+
   useEffect(()=>{
-    const refresh=()=>{if(typeof SharedStore!=='undefined')setSummary(SharedStore.getTodaySummary());};
+    const refresh = () => {
+      if (typeof SharedStore !== 'undefined') setSummary(SharedStore.getTodaySummary());
+    };
     refresh();
-    window.addEventListener('storage',refresh);
-    return()=>window.removeEventListener('storage',refresh);
-  },[]);
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
+  }, []);
 
-  const update = (newApps) => {setApps(newApps);saveApps(newApps)};
-
-  const startAdd = () => {setForm({name:"",desc:"",url:"",icon:"◆",color:"#34C759"});setAdding(true);setEditing(null)};
-  const startEdit = (app) => {setForm({name:app.name,desc:app.desc,url:app.url||"",icon:app.icon,color:app.color});setEditing(app.id);setAdding(false)};
-
-  const save = () => {
-    if(!form.name.trim()||!form.url.trim())return;
-    if(editing){
-      update(apps.map(a=>a.id===editing?{...a,name:form.name,desc:form.desc,url:form.url,icon:form.icon,color:form.color}:a));
-      setEditing(null);
-    } else {
-      update([...apps,{id:"app-"+Date.now(),name:form.name,desc:form.desc,url:form.url,icon:form.icon,color:form.color}]);
-      setAdding(false);
+  // サマリーテキストを返す。連携なしのアプリは null
+  const getAppSummary = (id) => {
+    const noData = {text:'未記録', color:'#AEAEB2', dim:true};
+    if (id === 'kakeibo') {
+      if (!summary?.expense) return noData;
+      const spent = summary.expense.budget - summary.expense.remaining;
+      return {text:`¥${spent.toLocaleString()} / ¥${summary.expense.budget.toLocaleString()}`, color: summary.expense.remaining >= 0 ? '#34C759' : '#FF3B30'};
     }
+    if (id === 'routine-tracker') {
+      if (!summary?.routine) return noData;
+      return {text:`${summary.routine.completed}/${summary.routine.total} 完了 ${summary.routine.rate}%`, color:'#FF9500'};
+    }
+    if (id === 'study-tracker') {
+      if (!summary?.study) return noData;
+      const t = summary.study.lastSubject
+        ? `${summary.study.minutes}分 · ${summary.study.lastSubject}`
+        : `${summary.study.minutes}分`;
+      return {text:t, color:'#5856D6'};
+    }
+    return null; // goal-manager, wardrobe-manager は将来連携
   };
 
-  const remove = (id) => {update(apps.filter(a=>a.id!==id));setEditing(null)};
-  const cancel = () => {setAdding(false);setEditing(null)};
-
-  const isEditing = adding||editing;
+  // ゲーミフィケーション スコア
+  const scoreItems = [
+    {label:'予算内',     done: !!summary?.expense?.withinBudget,        color:'#34C759'},
+    {label:'勉強30分',   done: (summary?.study?.minutes || 0) >= 30,    color:'#5856D6'},
+    {label:'ルーティン', done: (summary?.routine?.rate || 0) >= 80,     color:'#FF9500'},
+  ];
+  const score = scoreItems.filter(s => s.done).length;
 
   return (
-    <div style={{padding:"0 16px"}}>
-      <Section title="My Apps" topGap={18}>
-        {apps.map((app,i)=>(
-          <div key={app.id} style={{marginBottom:8,animation:`fadeIn 0.3s ease ${i*0.06}s both`}}>
-            {editing===app.id ? (
-              <div style={{background:"#fff",borderRadius:14,padding:"16px",border:"2px solid "+form.color}}>
-                <div style={{fontSize:11,fontWeight:600,color:"#999",fontFamily:mn,marginBottom:10}}>EDIT APP</div>
-                <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-                  {ICON_OPTIONS.map(ic=>(
-                    <button key={ic} onClick={()=>setForm({...form,icon:ic})} style={{width:32,height:32,borderRadius:8,border:form.icon===ic?"2px solid "+form.color:"1px solid #EEE",background:form.icon===ic?form.color+"15":"#fff",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{ic}</button>
-                  ))}
-                </div>
-                <div style={{display:"flex",gap:4,marginBottom:10}}>
-                  {COLOR_OPTIONS.map(c=>(
-                    <button key={c} onClick={()=>setForm({...form,color:c})} style={{width:24,height:24,borderRadius:12,background:c,border:form.color===c?"2px solid #fff":"none",boxShadow:form.color===c?"0 0 0 2px "+c:"none",cursor:"pointer"}}/>
-                  ))}
-                </div>
-                <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="App name" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:"1px solid #E8E8E8",fontSize:13,fontFamily:sn,outline:"none",marginBottom:6,background:"#FAFAF8"}}/>
-                <input value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="Description" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:"1px solid #E8E8E8",fontSize:13,fontFamily:sn,outline:"none",marginBottom:6,background:"#FAFAF8"}}/>
-                <input value={form.url} onChange={e=>setForm({...form,url:e.target.value})} placeholder="https://hiroki-ikkyu.github.io/..." style={{width:"100%",padding:"8px 12px",borderRadius:8,border:"1px solid #E8E8E8",fontSize:12,fontFamily:mn,outline:"none",marginBottom:10,background:"#FAFAF8"}}/>
-                <div style={{display:"flex",gap:6}}>
-                  <button onClick={save} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:"#1A1A1A",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>Save</button>
-                  <button onClick={cancel} style={{padding:"8px 12px",borderRadius:8,border:"1px solid #E8E8E8",background:"#fff",fontSize:12,cursor:"pointer",color:"#999"}}>Cancel</button>
-                  {!app.internal&&<button onClick={()=>remove(app.id)} style={{padding:"8px 12px",borderRadius:8,border:"none",background:"#FF3B3015",fontSize:12,cursor:"pointer",color:"#FF3B30",fontWeight:600}}>Delete</button>}
-                </div>
-              </div>
-            ) : (
-              <div style={{display:"flex",alignItems:"center",gap:14,background:"#fff",borderRadius:14,padding:"14px 16px",border:"1px solid #EDEDED"}}>
-                <button onClick={()=>{if(app.internal)onNav("brief");else if(app.url)window.open(app.url,"_blank")}} style={{display:"flex",alignItems:"center",gap:14,background:"none",border:"none",cursor:"pointer",textAlign:"left",flex:1,padding:0}}>
-                  <div style={{width:48,height:48,borderRadius:12,background:`${app.color}12`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,fontFamily:mn,color:app.color,flexShrink:0}}>{app.icon}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:15,fontWeight:600,color:"#1A1A1A"}}>{app.name}</div>
-                    <div style={{fontSize:12,color:"#999",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{app.desc}</div>
-                    {summary&&app.id==='kakeibo'&&summary.expense&&<div style={{fontSize:11,color:summary.expense.remaining>=0?"#34C759":"#FF3B30",fontFamily:mn,marginTop:2,fontWeight:600}}>今日 ¥{(summary.expense.budget-summary.expense.remaining).toLocaleString()} / ¥{summary.expense.budget.toLocaleString()}</div>}
-                    {summary&&app.id==='study-tracker'&&summary.study&&<div style={{fontSize:11,color:"#5856D6",fontFamily:mn,marginTop:2,fontWeight:600}}>今日 {summary.study.minutes}分{summary.study.lastSubject?' · '+summary.study.lastSubject:''}</div>}
-                    {summary&&app.id==='routine-tracker'&&summary.routine&&<div style={{fontSize:11,color:"#FF9500",fontFamily:mn,marginTop:2,fontWeight:600}}>{summary.routine.completed}/{summary.routine.total} 完了 ({summary.routine.rate}%)</div>}
-                    {app.url&&<div style={{fontSize:9,color:"#CCC",fontFamily:mn,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{app.url}</div>}
-                  </div>
-                  <div style={{color:"#CCC",fontSize:20,flexShrink:0}}>›</div>
-                </button>
-                {!app.internal&&<button onClick={()=>startEdit(app)} style={{background:"none",border:"none",cursor:"pointer",padding:4,fontSize:14,color:"#CCC"}}>✎</button>}
-              </div>
-            )}
-          </div>
-        ))}
+    <div style={{padding:"0 16px 48px"}}>
 
-        {/* Add form */}
-        {adding ? (
-          <div style={{background:"#fff",borderRadius:14,padding:"16px",border:"2px dashed "+form.color,marginBottom:8}}>
-            <div style={{fontSize:11,fontWeight:600,color:"#999",fontFamily:mn,marginBottom:10}}>NEW APP</div>
-            <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-              {ICON_OPTIONS.map(ic=>(
-                <button key={ic} onClick={()=>setForm({...form,icon:ic})} style={{width:32,height:32,borderRadius:8,border:form.icon===ic?"2px solid "+form.color:"1px solid #EEE",background:form.icon===ic?form.color+"15":"#fff",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{ic}</button>
-              ))}
-            </div>
-            <div style={{display:"flex",gap:4,marginBottom:10}}>
-              {COLOR_OPTIONS.map(c=>(
-                <button key={c} onClick={()=>setForm({...form,color:c})} style={{width:24,height:24,borderRadius:12,background:c,border:form.color===c?"2px solid #fff":"none",boxShadow:form.color===c?"0 0 0 2px "+c:"none",cursor:"pointer"}}/>
-              ))}
-            </div>
-            <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="App name" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:"1px solid #E8E8E8",fontSize:13,fontFamily:sn,outline:"none",marginBottom:6,background:"#FAFAF8"}}/>
-            <input value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="Description (optional)" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:"1px solid #E8E8E8",fontSize:13,fontFamily:sn,outline:"none",marginBottom:6,background:"#FAFAF8"}}/>
-            <input value={form.url} onChange={e=>setForm({...form,url:e.target.value})} placeholder="https://hiroki-ikkyu.github.io/repo-name/" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:"1px solid #E8E8E8",fontSize:12,fontFamily:mn,outline:"none",marginBottom:10,background:"#FAFAF8"}}/>
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={save} disabled={!form.name.trim()||!form.url.trim()} style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:form.name.trim()&&form.url.trim()?"#1A1A1A":"#E8E8E8",color:form.name.trim()&&form.url.trim()?"#fff":"#BBB",fontSize:12,fontWeight:600,cursor:"pointer"}}>Add</button>
-              <button onClick={cancel} style={{padding:"8px 12px",borderRadius:8,border:"1px solid #E8E8E8",background:"#fff",fontSize:12,cursor:"pointer",color:"#999"}}>Cancel</button>
-            </div>
+      {/* ── スコアバナー ── */}
+      <div style={{marginTop:18,background:"#fff",borderRadius:16,padding:"16px",border:"1px solid #EDEDED"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:600,color:"#6E6E73",fontFamily:mn,letterSpacing:1.2,textTransform:"uppercase"}}>Today's Score</div>
+          <div style={{fontSize:22,fontWeight:700,fontFamily:mn,color:"#1D1D1F"}}>
+            {score}<span style={{fontSize:13,color:"#AEAEB2",fontWeight:400}}>/3</span>
           </div>
-        ) : !isEditing && (
-          <button onClick={startAdd} style={{display:"flex",alignItems:"center",gap:14,background:"#fff",borderRadius:14,padding:"14px 16px",border:"1px dashed #DDD",cursor:"pointer",textAlign:"left",width:"100%",marginBottom:8,opacity:0.6}}>
-            <div style={{width:48,height:48,borderRadius:12,background:"#F5F5F3",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,fontFamily:mn,color:"#CCC",flexShrink:0}}>+</div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:15,fontWeight:600,color:"#BBB"}}>Add app</div>
-              <div style={{fontSize:12,color:"#CCC",marginTop:2}}>GitHub Pages URL を入力</div>
-            </div>
-          </button>
-        )}
-      </Section>
-
-      <Section title="Today's Snapshot">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {[
-            {label:"Budget left",value:summary?.expense?`¥${summary.expense.remaining.toLocaleString()}`:"—",sub:summary?.expense?`of ¥${summary.expense.budget.toLocaleString()}`:"no data",color:summary?.expense?(summary.expense.remaining>=0?"#34C759":"#FF3B30"):"#34C759"},
-            {label:"Study today",value:summary?.study?`${summary.study.minutes}分`:"—",sub:summary?.study?.lastSubject||"no data",color:"#5856D6"},
-            {label:"Routine done",value:summary?.routine?`${summary.routine.completed} / ${summary.routine.total}`:"—",sub:summary?.routine?`${summary.routine.rate}%`:"no data",color:"#FF9500"},
-            {label:"Port P&L",value:"+1.8%",sub:"All funds",color:"#1A1A1A"}
-          ].map((s,i)=>(
-            <div key={i} style={{background:"#fff",borderRadius:12,padding:"14px",border:"1px solid #EDEDED",animation:`fadeIn 0.3s ease ${i*0.05}s both`}}>
-              <div style={{fontSize:10,color:"#999",fontFamily:mn,letterSpacing:0.3}}>{s.label}</div>
-              <div style={{fontSize:20,fontWeight:700,fontFamily:mn,color:s.color,marginTop:4}}>{s.value}</div>
-              <div style={{fontSize:10,color:"#CCC",fontFamily:mn,marginTop:2}}>{s.sub}</div>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          {scoreItems.map((item,i) => (
+            <div key={i} style={{
+              flex:1, borderRadius:10, padding:"9px 4px",
+              background: item.done ? `${item.color}12` : "#F5F5F7",
+              border: `1px solid ${item.done ? item.color+'30' : '#EDEDED'}`,
+              textAlign:"center"
+            }}>
+              <div style={{fontSize:14, lineHeight:1}}>{item.done ? '✓' : '·'}</div>
+              <div style={{
+                fontSize:9, marginTop:3, fontFamily:mn, letterSpacing:0.2, fontWeight: item.done ? 600 : 400,
+                color: item.done ? item.color : '#AEAEB2'
+              }}>{item.label}</div>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ── アプリ一覧 ── */}
+      <Section title="My Apps" topGap={20}>
+        {FIXED_APPS.map((app, i) => {
+          const sumData = getAppSummary(app.id);
+          return (
+            <div key={app.id} style={{marginBottom:8, animation:`fadeIn 0.3s ease ${i*0.06}s both`}}>
+              <button
+                onClick={()=>window.open(app.url, "_blank")}
+                style={{
+                  display:"flex", alignItems:"center", gap:14,
+                  background:"#fff", borderRadius:16, padding:"14px 16px",
+                  border:"1px solid #EDEDED", cursor:"pointer",
+                  width:"100%", textAlign:"left", outline:"none",
+                  WebkitTapHighlightColor:"transparent"
+                }}
+              >
+                {/* アイコン */}
+                <div style={{
+                  width:48, height:48, borderRadius:14,
+                  background:`${app.color}12`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:22, flexShrink:0
+                }}>{app.icon}</div>
+
+                {/* テキスト */}
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontSize:15, fontWeight:600, color:"#1D1D1F", fontFamily:sn}}>{app.name}</div>
+                  {sumData && (
+                    <div style={{
+                      fontSize:12, marginTop:3, fontFamily:mn,
+                      color: sumData.dim ? '#AEAEB2' : sumData.color,
+                      fontWeight: sumData.dim ? 400 : 600,
+                    }}>{sumData.text}</div>
+                  )}
+                  {!sumData && (
+                    <div style={{fontSize:11, marginTop:3, color:"#AEAEB2", fontFamily:mn}}>将来連携</div>
+                  )}
+                </div>
+
+                {/* シェブロン */}
+                <div style={{color:"#AEAEB2", fontSize:18, flexShrink:0, lineHeight:1}}>›</div>
+              </button>
+            </div>
+          );
+        })}
       </Section>
     </div>
   );
