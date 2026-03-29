@@ -268,7 +268,18 @@ const CEOPage = () => {
         : `${summary.study.minutes}分`;
       return {text:t, color:'#5856D6'};
     }
-    return null; // goal-manager, wardrobe-manager は将来連携
+    if (id === 'goal-manager') {
+      const gs = typeof SharedStore !== 'undefined'
+        ? SharedStore._utils.safeGet('shared:goals:summary') : null;
+      if (!gs) return noData;
+      return {
+        text: `${gs.activeGoals}件進行中 · ${gs.overallProgress}%`,
+        sub: gs.checkedInToday ? '✓ チェックイン済' : '未チェックイン',
+        subColor: gs.checkedInToday ? '#34C759' : '#AEAEB2',
+        color: '#FF3B30'
+      };
+    }
+    return null; // wardrobe-manager は将来連携
   };
 
   // ゲーミフィケーション スコア
@@ -336,11 +347,16 @@ const CEOPage = () => {
                 <div style={{flex:1, minWidth:0}}>
                   <div style={{fontSize:15, fontWeight:600, color:"#1D1D1F", fontFamily:sn}}>{app.name}</div>
                   {sumData && (
-                    <div style={{
-                      fontSize:12, marginTop:3, fontFamily:mn,
-                      color: sumData.dim ? '#AEAEB2' : sumData.color,
-                      fontWeight: sumData.dim ? 400 : 600,
-                    }}>{sumData.text}</div>
+                    <>
+                      <div style={{
+                        fontSize:12, marginTop:3, fontFamily:mn,
+                        color: sumData.dim ? '#AEAEB2' : sumData.color,
+                        fontWeight: sumData.dim ? 400 : 600,
+                      }}>{sumData.text}</div>
+                      {sumData.sub && (
+                        <div style={{fontSize:11, marginTop:1, fontFamily:mn, color: sumData.subColor||'#AEAEB2'}}>{sumData.sub}</div>
+                      )}
+                    </>
                   )}
                   {!sumData && (
                     <div style={{fontSize:11, marginTop:3, color:"#AEAEB2", fontFamily:mn}}>将来連携</div>
