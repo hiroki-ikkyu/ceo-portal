@@ -20,8 +20,8 @@
 |---------|-------------------|------|------|
 | CEO Portal | `ceo-portal` | Morning Brief + CEOページ（アプリハブ） | 稼働中 |
 | 家計簿（Expense Tracker） | `kakeibo` | ¥3,000/日予算・サブスク・収入管理 | 稼働中 |
-| Routine Tracker | 要確認 | タイムライン型日課チェック・ジャーナル | 稼働中 |
-| Study Tracker | 要確認 | USCPA・簿記2級の勉強時間記録 | 稼働中 |
+| Routine Tracker | `routine-tracker` | タイムライン型日課チェック・ジャーナル | 稼働中 |
+| Study Tracker | `study-tracker` | USCPA・簿記2級の勉強時間記録 | 稼働中 |
 | Goal Manager | `goal-manager` | キャリア・資格・スキル目標管理 | 稼働中 |
 | Wardrobe Manager | `wardrobe-manager` | 服の管理・ウィッシュリスト | 稼働中 |
 
