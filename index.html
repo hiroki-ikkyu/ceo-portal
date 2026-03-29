@@ -18,6 +18,7 @@ body{margin:0;-webkit-font-smoothing:antialiased;font-family:'Outfit',sans-serif
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="shared-store.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -148,6 +149,11 @@ const NOTES_INIT = [
 
 const DEFAULT_APPS = [
   {id:"morning-brief",name:"Morning Brief",desc:"Materials sector research portal",icon:"☀",color:"#1A1A1A",internal:true},
+  {id:"kakeibo",name:"家計簿",desc:"¥3,000/日予算・支出管理",icon:"¥",color:"#34C759",url:"https://hiroki-ikkyu.github.io/kakeibo/"},
+  {id:"routine-tracker",name:"Routine Tracker",desc:"タイムライン型日課チェック",icon:"◎",color:"#FF9500",url:"https://hiroki-ikkyu.github.io/routine-tracker/"},
+  {id:"study-tracker",name:"Study Tracker",desc:"USCPA・簿記2級の勉強時間記録",icon:"▣",color:"#5856D6",url:"https://hiroki-ikkyu.github.io/study-tracker/"},
+  {id:"goal-manager",name:"Goal Manager",desc:"キャリア・資格・スキル目標管理",icon:"▲",color:"#FF3B30",url:"https://hiroki-ikkyu.github.io/goal-manager/"},
+  {id:"wardrobe-manager",name:"Wardrobe Manager",desc:"服の管理・ウィッシュリスト",icon:"◆",color:"#AF52DE",url:"https://hiroki-ikkyu.github.io/wardrobe-manager/"},
 ];
 
 const ICON_OPTIONS = ["☀","¥","◎","▣","◆","▶","★","♦","⬡","◉","▲","■"];
@@ -243,6 +249,13 @@ const CEOPage = ({onNav}) => {
   const [adding,setAdding] = useState(false);
   const [editing,setEditing] = useState(null);
   const [form,setForm] = useState({name:"",desc:"",url:"",icon:"◆",color:"#34C759"});
+  const [summary,setSummary] = useState(null);
+  useEffect(()=>{
+    const refresh=()=>{if(typeof SharedStore!=='undefined')setSummary(SharedStore.getTodaySummary());};
+    refresh();
+    window.addEventListener('storage',refresh);
+    return()=>window.removeEventListener('storage',refresh);
+  },[]);
 
   const update = (newApps) => {setApps(newApps);saveApps(newApps)};
 
@@ -299,6 +312,9 @@ const CEOPage = ({onNav}) => {
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:15,fontWeight:600,color:"#1A1A1A"}}>{app.name}</div>
                     <div style={{fontSize:12,color:"#999",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{app.desc}</div>
+                    {summary&&app.id==='kakeibo'&&summary.expense&&<div style={{fontSize:11,color:summary.expense.remaining>=0?"#34C759":"#FF3B30",fontFamily:mn,marginTop:2,fontWeight:600}}>今日 ¥{(summary.expense.budget-summary.expense.remaining).toLocaleString()} / ¥{summary.expense.budget.toLocaleString()}</div>}
+                    {summary&&app.id==='study-tracker'&&summary.study&&<div style={{fontSize:11,color:"#5856D6",fontFamily:mn,marginTop:2,fontWeight:600}}>今日 {summary.study.minutes}分{summary.study.lastSubject?' · '+summary.study.lastSubject:''}</div>}
+                    {summary&&app.id==='routine-tracker'&&summary.routine&&<div style={{fontSize:11,color:"#FF9500",fontFamily:mn,marginTop:2,fontWeight:600}}>{summary.routine.completed}/{summary.routine.total} 完了 ({summary.routine.rate}%)</div>}
                     {app.url&&<div style={{fontSize:9,color:"#CCC",fontFamily:mn,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{app.url}</div>}
                   </div>
                   <div style={{color:"#CCC",fontSize:20,flexShrink:0}}>›</div>
@@ -344,7 +360,12 @@ const CEOPage = ({onNav}) => {
 
       <Section title="Today's Snapshot">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {[{label:"Budget left",value:"¥1,200",sub:"of ¥3,000",color:"#34C759"},{label:"Study streak",value:"12 days",sub:"USCPA FAR",color:"#5856D6"},{label:"Routine done",value:"3 / 7",sub:"Morning tasks",color:"#FF9500"},{label:"Port P&L",value:"+1.8%",sub:"All funds",color:"#1A1A1A"}].map((s,i)=>(
+          {[
+            {label:"Budget left",value:summary?.expense?`¥${summary.expense.remaining.toLocaleString()}`:"—",sub:summary?.expense?`of ¥${summary.expense.budget.toLocaleString()}`:"no data",color:summary?.expense?(summary.expense.remaining>=0?"#34C759":"#FF3B30"):"#34C759"},
+            {label:"Study today",value:summary?.study?`${summary.study.minutes}分`:"—",sub:summary?.study?.lastSubject||"no data",color:"#5856D6"},
+            {label:"Routine done",value:summary?.routine?`${summary.routine.completed} / ${summary.routine.total}`:"—",sub:summary?.routine?`${summary.routine.rate}%`:"no data",color:"#FF9500"},
+            {label:"Port P&L",value:"+1.8%",sub:"All funds",color:"#1A1A1A"}
+          ].map((s,i)=>(
             <div key={i} style={{background:"#fff",borderRadius:12,padding:"14px",border:"1px solid #EDEDED",animation:`fadeIn 0.3s ease ${i*0.05}s both`}}>
               <div style={{fontSize:10,color:"#999",fontFamily:mn,letterSpacing:0.3}}>{s.label}</div>
               <div style={{fontSize:20,fontWeight:700,fontFamily:mn,color:s.color,marginTop:4}}>{s.value}</div>
