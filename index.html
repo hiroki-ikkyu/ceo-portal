@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111111">
+<link rel="manifest" href="manifest.json">
+<title>CEO Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased;font-family:'Outfit',sans-serif}
+*{box-sizing:border-box}
+::-webkit-scrollbar{display:none}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect} = React;
+
+// ════════════════════════════════════════════════════════════════
+// FUND DEFINITIONS
+// ════════════════════════════════════════════════════════════════
+
+const FUNDS = {
+  LO: {
+    id:"LO",name:"Long Only",color:"#5856D6",
+    positions:[
+      {ticker:"5401",name:"日本製鉄",sector:"Steel",weight:8.2,pnl:3.4,price:3245,chg:1.2,rating:"OW",tp:3800,upside:17.1,side:"L"},
+      {ticker:"4063",name:"信越化学",sector:"Chem",weight:7.5,pnl:-1.8,price:5420,chg:-0.6,rating:"OW",tp:6200,upside:14.4,side:"L"},
+      {ticker:"5713",name:"住友鉱山",sector:"NF",weight:6.1,pnl:5.2,price:4580,chg:2.1,rating:"OW",tp:5500,upside:20.1,side:"L"},
+      {ticker:"BHP",name:"BHP Group",sector:"Mining",weight:5.8,pnl:2.1,price:42.3,chg:0.8,rating:"N",tp:45,upside:6.4,side:"L"},
+      {ticker:"5411",name:"JFE HD",sector:"Steel",weight:4.9,pnl:7.8,price:2015,chg:3.2,rating:"OW",tp:2400,upside:19.1,side:"L"},
+      {ticker:"4005",name:"住友化学",sector:"Chem",weight:3.8,pnl:12.1,price:385,chg:4.5,rating:"OW",tp:450,upside:16.9,side:"L"},
+      {ticker:"RIO",name:"Rio Tinto",sector:"Mining",weight:4.5,pnl:1.5,price:118.5,chg:0.4,rating:"N",tp:125,upside:5.5,side:"L"},
+    ],
+    metrics:{grossExp:40.8,netExp:40.8,beta:1.12},
+  },
+  LS: {
+    id:"LS",name:"Long/Short",color:"#FF9500",
+    positions:[
+      {ticker:"5713",name:"住友鉱山",sector:"NF",weight:6.0,pnl:5.2,price:4580,chg:2.1,rating:"OW",tp:5500,upside:20.1,side:"L"},
+      {ticker:"5401",name:"日本製鉄",sector:"Steel",weight:5.5,pnl:3.4,price:3245,chg:1.2,rating:"OW",tp:3800,upside:17.1,side:"L"},
+      {ticker:"4005",name:"住友化学",sector:"Chem",weight:4.2,pnl:12.1,price:385,chg:4.5,rating:"OW",tp:450,upside:16.9,side:"L"},
+      {ticker:"BHP",name:"BHP Group",sector:"Mining",weight:3.8,pnl:2.1,price:42.3,chg:0.8,rating:"N",tp:45,upside:6.4,side:"L"},
+      {ticker:"4188",name:"三菱ケミG",sector:"Chem",weight:-4.5,pnl:2.8,price:832,chg:-0.2,rating:"UW",tp:780,upside:-6.3,side:"S"},
+      {ticker:"VALE",name:"Vale SA",sector:"Mining",weight:-3.2,pnl:4.1,price:11.8,chg:-1.5,rating:"UW",tp:10.5,upside:-11.0,side:"S"},
+      {ticker:"5802",name:"住友電工",sector:"NF",weight:-2.8,pnl:-1.2,price:2180,chg:-1.1,rating:"UW",tp:1900,upside:-12.8,side:"S"},
+    ],
+    metrics:{grossExp:30.0,netExp:9.0,beta:0.35},
+  },
+  MN: {
+    id:"MN",name:"Market Neutral",color:"#34C759",
+    positions:[
+      {ticker:"5401",name:"日本製鉄",sector:"Steel",weight:4.0,pnl:3.4,price:3245,chg:1.2,rating:"OW",tp:3800,upside:17.1,side:"L"},
+      {ticker:"5411",name:"JFE HD",sector:"Steel",weight:-3.8,pnl:1.2,price:2015,chg:3.2,rating:"UW",tp:1800,upside:-10.7,side:"S"},
+      {ticker:"4063",name:"信越化学",sector:"Chem",weight:3.5,pnl:-1.8,price:5420,chg:-0.6,rating:"OW",tp:6200,upside:14.4,side:"L"},
+      {ticker:"4188",name:"三菱ケミG",sector:"Chem",weight:-3.3,pnl:2.8,price:832,chg:-0.2,rating:"UW",tp:780,upside:-6.3,side:"S"},
+      {ticker:"5713",name:"住友鉱山",sector:"NF",weight:3.0,pnl:5.2,price:4580,chg:2.1,rating:"OW",tp:5500,upside:20.1,side:"L"},
+      {ticker:"5802",name:"住友電工",sector:"NF",weight:-2.8,pnl:-1.2,price:2180,chg:-1.1,rating:"N",tp:2050,upside:-6.0,side:"S"},
+    ],
+    metrics:{grossExp:20.4,netExp:0.6,beta:0.02},
+  },
+  HD: {
+    id:"HD",name:"高配当",color:"#FF3B30",
+    positions:[
+      {ticker:"5401",name:"日本製鉄",sector:"Steel",weight:7.0,pnl:3.4,price:3245,chg:1.2,rating:"OW",tp:3800,upside:17.1,side:"L",divYld:4.8},
+      {ticker:"5411",name:"JFE HD",sector:"Steel",weight:6.5,pnl:7.8,price:2015,chg:3.2,rating:"OW",tp:2400,upside:19.1,side:"L",divYld:5.2},
+      {ticker:"BHP",name:"BHP Group",sector:"Mining",weight:5.5,pnl:2.1,price:42.3,chg:0.8,rating:"N",tp:45,upside:6.4,side:"L",divYld:5.8},
+      {ticker:"RIO",name:"Rio Tinto",sector:"Mining",weight:5.0,pnl:1.5,price:118.5,chg:0.4,rating:"N",tp:125,upside:5.5,side:"L",divYld:5.5},
+      {ticker:"5802",name:"住友電工",sector:"NF",weight:4.0,pnl:-2.3,price:2180,chg:-1.1,rating:"N",tp:2300,upside:5.5,side:"L",divYld:3.8},
+      {ticker:"4005",name:"住友化学",sector:"Chem",weight:3.5,pnl:12.1,price:385,chg:4.5,rating:"OW",tp:450,upside:16.9,side:"L",divYld:3.2},
+    ],
+    metrics:{grossExp:31.5,netExp:31.5,beta:0.85,avgYld:4.7},
+  },
+};
+
+const FUND_IDS = ["LO","LS","MN","HD"];
+
+const FEAR_GREED = {value:38,label:"Fear",prev:42,weekAgo:55};
+
+const OVERNIGHT = [
+  {market:"S&P 500",close:"5,842",chg:-0.34,flag:"🇺🇸"},{market:"NASDAQ",close:"18,290",chg:-0.58,flag:"🇺🇸"},
+  {market:"Euro Stoxx",close:"4,985",chg:0.22,flag:"🇪🇺"},{market:"Shanghai",close:"3,265",chg:-0.81,flag:"🇨🇳"},
+  {market:"Hang Seng",close:"17,840",chg:-1.12,flag:"🇭🇰"},{market:"ASX 200",close:"7,920",chg:0.15,flag:"🇦🇺"},
+];
+
+const HEADLINES = [
+  {time:"06:30",text:"China Caixin PMI 51.2 (est 50.5)、3ヶ月ぶり高水準",tag:"macro",impact:"positive"},
+  {time:"05:15",text:"Vale、Carajás鉱山で操業一時停止 — 鉄鉱石先物+1.8%",tag:"commodity",impact:"positive"},
+  {time:"04:00",text:"Fed Waller理事「利下げ急がず」— 米10年債4.28%へ",tag:"rates",impact:"negative"},
+  {time:"02:30",text:"LME銅在庫 5日連続減少、プレミアム拡大傾向",tag:"commodity",impact:"positive"},
+  {time:"01:00",text:"EU CBAM移行期間レポート公表 — 鉄鋼業界への影響注視",tag:"regulation",impact:"neutral"},
+];
+
+const SIGNALS = [
+  {ticker:"5713",name:"住友鉱山",signal:"Approaching TP",detail:"TP ¥5,500 まで残り20%。Cu価格堅調 → 上方修正検討",type:"review",funds:["LO","LS","MN"]},
+  {ticker:"4005",name:"住友化学",signal:"Strong momentum",detail:"1D +4.5%, 5D +8.2%。石化スプレッド改善織り込み中",type:"momentum",funds:["LO","LS","HD"]},
+  {ticker:"VALE",name:"Vale SA",signal:"Carajás停止リスク",detail:"操業停止報道 → 短期供給懸念。UWポジ再考?",type:"event",funds:["LS"]},
+  {ticker:"5411",name:"JFE HD",signal:"決算3/31",detail:"コンセンサス上振れ期待。HRC margin拡大を確認済",type:"earnings",funds:["LO","MN","HD"]},
+];
+
+const COMMODITIES = [
+  {name:"Iron Ore",price:108.5,chg:1.8,unit:"$/t",spark:[102,105,103,107,106,108,110,108,107,109,108.5]},
+  {name:"Copper",price:9245,chg:-0.4,unit:"$/t",spark:[9100,9200,9350,9280,9310,9250,9180,9220,9260,9300,9245]},
+  {name:"Aluminum",price:2510,chg:0.8,unit:"$/t",spark:[2420,2450,2480,2460,2490,2520,2500,2510,2530,2490,2510]},
+  {name:"Naphtha",price:628,chg:-1.1,unit:"$/t",spark:[650,645,640,638,635,632,630,625,628,630,628]},
+  {name:"Ethylene",price:945,chg:0.3,unit:"$/t",spark:[920,925,930,935,940,938,942,945,948,943,945]},
+  {name:"Nickel",price:16850,chg:2.1,unit:"$/t",spark:[16200,16400,16500,16600,16700,16650,16800,16750,16900,16820,16850]},
+];
+
+const SPREADS = [
+  {name:"Ethylene-Naphtha",current:317,avg:298,trend:"expanding"},
+  {name:"HRC Margin (JP)",current:82500,avg:78500,trend:"expanding"},
+  {name:"Copper TC/RC",current:80,avg:65,trend:"expanding"},
+];
+
+const MACRO = [
+  {name:"China Caixin PMI",value:"51.2",prev:"50.8",signal:"up"},
+  {name:"JP Tankan (Mfg)",value:"12",prev:"9",signal:"up"},
+  {name:"US ISM Mfg",value:"49.8",prev:"50.3",signal:"down"},
+  {name:"USD/JPY",value:"152.4",prev:"151.8",signal:"up"},
+  {name:"AUD/JPY",value:"99.2",prev:"98.7",signal:"up"},
+  {name:"US 10Y",value:"4.28%",prev:"4.22%",signal:"up"},
+  {name:"Baltic Dry",value:"1,842",prev:"1,780",signal:"up"},
+  {name:"EU Carbon",value:"€68.5",prev:"€71.2",signal:"down"},
+];
+
+const EVENTS = [
+  {date:"3/31",event:"住友鉱山 4Q決算",type:"earn",days:2},
+  {date:"4/1",event:"Caixin PMI",type:"macro",days:3},
+  {date:"4/3",event:"日本製鉄 4Q決算",type:"earn",days:5},
+  {date:"4/7",event:"BHP Q3 Production",type:"earn",days:9},
+  {date:"4/10",event:"US CPI",type:"macro",days:12},
+];
+
+const NOTES_INIT = [
+  {id:1,date:"3/28",text:"住友鉱山: QB Project進捗。Cu FY25ガイダンス上振れ余地。",ticker:"5713"},
+  {id:2,date:"3/27",text:"E/N spread拡大。4188/4005石化セグメント改善注目。"},
+  {id:3,date:"3/26",text:"BHP: Met coal soft → EBITDA下方修正リスク。Cu/Feでオフセット。",ticker:"BHP"},
+];
+
+const CEO_APPS = [
+  {id:"morning-brief",name:"Morning Brief",desc:"Materials sector research portal",icon:"☀",color:"#1A1A1A",status:"active",internal:true},
+  {id:"expense",name:"Expense Tracker",desc:"¥3,000/day budget · Reward stocks",icon:"¥",color:"#34C759",url:"#expense",status:"active"},
+  {id:"study",name:"Study Tracker",desc:"USCPA · 簿記2級 progress",icon:"◎",color:"#5856D6",url:"#study",status:"active"},
+  {id:"routine",name:"Routine Tracker",desc:"Today · Review · Journal · Settings",icon:"▣",color:"#FF9500",url:"#routine",status:"active"},
+  {id:"add",name:"Add app",desc:"Connect a new PWA",icon:"+",color:"#CCC",url:null,status:"placeholder"},
+];
+
+// ════════════════════════════════════════════════════════════════
+// SHARED COMPONENTS
+// ════════════════════════════════════════════════════════════════
+
+const mn = "'JetBrains Mono','DM Mono',monospace";
+const sn = "'Outfit',sans-serif";
+
+const Spark = ({data,color,w=56,h=20}) => {
+  const mi=Math.min(...data),mx=Math.max(...data),r=mx-mi||1;
+  const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-mi)/r)*h}`).join(" ");
+  return React.createElement("svg",{width:w,height:h,style:{display:"block"}},
+    React.createElement("polyline",{points:pts,fill:"none",stroke:color,strokeWidth:"1.5",strokeLinecap:"round",strokeLinejoin:"round"})
+  );
+};
+
+const Pill = ({children,color="#888"}) => (
+  <span style={{fontSize:9,fontWeight:600,fontFamily:mn,padding:"2px 6px",borderRadius:4,letterSpacing:0.3,background:`${color}15`,color,textTransform:"uppercase",whiteSpace:"nowrap"}}>{children}</span>
+);
+
+const Section = ({title,children,topGap}) => (
+  <div style={{marginTop:topGap||28}}>
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+      <div style={{fontSize:11,fontWeight:600,color:"#777",letterSpacing:1.5,textTransform:"uppercase",fontFamily:mn}}>{title}</div>
+      <div style={{flex:1,height:1,background:"#E8E8E8"}}/>
+    </div>
+    {children}
+  </div>
+);
+
+const FearGreedGauge = ({value,label,prev,weekAgo}) => {
+  const angle=-90+(value/100)*180;
+  const gc=v=>v<=25?"#FF3B30":v<=45?"#FF9500":v<=55?"#FFD60A":v<=75?"#8CC63F":"#34C759";
+  const color=gc(value);
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:16}}>
+      <div style={{position:"relative",width:100,height:56,flexShrink:0}}>
+        <svg width="100" height="56" viewBox="0 0 100 56">
+          <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#FF3B30"/><stop offset="25%" stopColor="#FF9500"/><stop offset="50%" stopColor="#FFD60A"/><stop offset="75%" stopColor="#8CC63F"/><stop offset="100%" stopColor="#34C759"/></linearGradient></defs>
+          <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#F0F0F0" strokeWidth="6" strokeLinecap="round"/>
+          <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#gg)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(value/100)*126} 126`}/>
+          <line x1="50" y1="50" x2="50" y2="16" stroke={color} strokeWidth="2" strokeLinecap="round" transform={`rotate(${angle} 50 50)`} style={{transition:"transform 1s cubic-bezier(0.34,1.56,0.64,1)"}}/>
+          <circle cx="50" cy="50" r="3" fill={color}/>
+        </svg>
+        <div style={{position:"absolute",bottom:0,left:0,right:0,textAlign:"center"}}><span style={{fontSize:18,fontWeight:700,fontFamily:mn,color}}>{value}</span></div>
+      </div>
+      <div>
+        <div style={{fontSize:15,fontWeight:700,color}}>{label}</div>
+        <div style={{fontSize:10,color:"#AAA",fontFamily:mn,marginTop:2}}>prev {prev} · 1w ago {weekAgo}</div>
+      </div>
+    </div>
+  );
+};
+
+const Hamburger = ({open,onClick}) => (
+  <button onClick={onClick} style={{background:"none",border:"none",cursor:"pointer",padding:8,display:"flex",flexDirection:"column",gap:open?0:4,alignItems:"center",justifyContent:"center",width:36,height:36,position:"relative",zIndex:210}}>
+    <span style={{display:"block",width:18,height:2,borderRadius:1,background:"#fff",transition:"all 0.3s",transform:open?"rotate(45deg)":"none",position:open?"absolute":"relative"}}/>
+    <span style={{display:"block",width:18,height:2,borderRadius:1,background:"#fff",transition:"all 0.2s",opacity:open?0:1}}/>
+    <span style={{display:"block",width:18,height:2,borderRadius:1,background:"#fff",transition:"all 0.3s",transform:open?"rotate(-45deg)":"none",position:open?"absolute":"relative"}}/>
+  </button>
+);
+
+const NAV = [{id:"brief",label:"Morning Brief",icon:"☀"},{id:"ceo",label:"CEO",icon:"⬡"}];
+
+const Drawer = ({open,onClose,page,onNav}) => (
+  <React.Fragment>
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",opacity:open?1:0,pointerEvents:open?"auto":"none",transition:"opacity 0.3s",zIndex:190}}/>
+    <div style={{position:"fixed",top:0,left:open?0:-280,width:270,height:"100vh",background:"#111",color:"#fff",transition:"left 0.3s cubic-bezier(0.4,0,0.2,1)",zIndex:200,padding:"72px 0 40px",display:"flex",flexDirection:"column"}}>
+      <div style={{flex:1,padding:"8px 0"}}>
+        {NAV.map(n=>{const active=page===n.id;return(
+          <button key={n.id} onClick={()=>{onNav(n.id);onClose()}} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"14px 24px",background:active?"rgba(255,255,255,0.08)":"transparent",border:"none",borderLeft:active?"3px solid #fff":"3px solid transparent",cursor:"pointer",color:active?"#fff":"#888",fontSize:15,fontWeight:active?600:400,fontFamily:sn,transition:"all 0.2s"}}>
+            <span style={{fontSize:18,width:24,textAlign:"center"}}>{n.icon}</span>{n.label}
+          </button>
+        )})}
+      </div>
+      <div style={{padding:"16px 24px",borderTop:"1px solid #333"}}>
+        <div style={{fontSize:10,color:"#555",fontFamily:mn,letterSpacing:0.5}}>HIROKI'S WORKSPACE</div>
+        <div style={{fontSize:9,color:"#444",fontFamily:mn,marginTop:4}}>v1.0 · PWA Suite</div>
+      </div>
+    </div>
+  </React.Fragment>
+);
+
+const CEOPage = ({onNav}) => (
+  <div style={{padding:"0 16px"}}>
+    <Section title="My Apps" topGap={18}>
+      {CEO_APPS.map((app,i)=>(
+        <button key={app.id} onClick={()=>{if(app.internal)onNav("brief")}} style={{display:"flex",alignItems:"center",gap:14,background:"#fff",borderRadius:14,padding:"14px 16px",border:app.status==="placeholder"?"1px dashed #DDD":"1px solid #EDEDED",cursor:app.status==="placeholder"?"default":"pointer",textAlign:"left",width:"100%",marginBottom:8,opacity:app.status==="placeholder"?0.5:1,animation:`fadeIn 0.3s ease ${i*0.06}s both`}}>
+          <div style={{width:48,height:48,borderRadius:12,background:app.status==="placeholder"?"#F5F5F3":`${app.color}12`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,fontFamily:mn,color:app.color,flexShrink:0}}>{app.icon}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:15,fontWeight:600,color:app.status==="placeholder"?"#BBB":"#1A1A1A"}}>{app.name}</div>
+            <div style={{fontSize:12,color:"#999",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{app.desc}</div>
+          </div>
+          {app.status!=="placeholder"&&<div style={{color:"#CCC",fontSize:20,flexShrink:0}}>›</div>}
+        </button>
+      ))}
+    </Section>
+    <Section title="Today's Snapshot">
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {[{label:"Budget left",value:"¥1,200",sub:"of ¥3,000",color:"#34C759"},{label:"Study streak",value:"12 days",sub:"USCPA FAR",color:"#5856D6"},{label:"Routine done",value:"3 / 7",sub:"Morning tasks",color:"#FF9500"},{label:"Port P&L",value:"+1.8%",sub:"All funds",color:"#1A1A1A"}].map((s,i)=>(
+          <div key={i} style={{background:"#fff",borderRadius:12,padding:"14px",border:"1px solid #EDEDED",animation:`fadeIn 0.3s ease ${i*0.05}s both`}}>
+            <div style={{fontSize:10,color:"#999",fontFamily:mn,letterSpacing:0.3}}>{s.label}</div>
+            <div style={{fontSize:20,fontWeight:700,fontFamily:mn,color:s.color,marginTop:4}}>{s.value}</div>
+            <div style={{fontSize:10,color:"#CCC",fontFamily:mn,marginTop:2}}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  </div>
+);
+
+const FundSelector = ({active,onChange}) => (
+  <div style={{display:"flex",gap:4,padding:"0 16px",marginTop:12,marginBottom:4}}>
+    {FUND_IDS.map(id=>{const f=FUNDS[id];const on=active===id;return(
+      <button key={id} onClick={()=>onChange(id)} style={{flex:1,padding:"7px 0",borderRadius:8,border:"none",fontSize:11,fontWeight:600,fontFamily:mn,cursor:"pointer",transition:"all 0.2s",letterSpacing:0.3,background:on?f.color:"#F0EFED",color:on?"#fff":"#999"}}>{id}</button>
+    )})}
+  </div>
+);
+
+// ════════════════════════════════════════════════════════════════
+// MAIN APP
+// ════════════════════════════════════════════════════════════════
+
+function App() {
+  const [page,setPage] = useState("brief");
+  const [view,setView] = useState("brief");
+  const [fund,setFund] = useState("LO");
+  const [drawerOpen,setDrawerOpen] = useState(false);
+  const [loaded,setLoaded] = useState(false);
+  const [noteText,setNoteText] = useState("");
+  const [notes,setNotes] = useState(NOTES_INIT);
+  const [portSort,setPortSort] = useState("weight");
+
+  useEffect(()=>{setTimeout(()=>setLoaded(true),80)},[]);
+
+  const F = FUNDS[fund];
+  const pos = F.positions;
+  const longW = pos.filter(p=>p.side==="L").reduce((s,p)=>s+p.weight,0);
+  const shortW = pos.filter(p=>p.side==="S").reduce((s,p)=>s+Math.abs(p.weight),0);
+  const pnl = pos.reduce((s,p)=>s+p.pnl*(Math.abs(p.weight)/100),0);
+
+  const addNote = () => {if(!noteText.trim())return;setNotes([{id:Date.now(),date:"3/29",text:noteText,ticker:""},...notes]);setNoteText("");};
+
+  const sorted = [...pos].sort((a,b)=>
+    portSort==="weight"?Math.abs(b.weight)-Math.abs(a.weight):
+    portSort==="pnl"?b.pnl-a.pnl:
+    portSort==="upside"?b.upside-a.upside:b.chg-a.chg
+  );
+
+  const nav = (p) => {setPage(p);window.scrollTo(0,0)};
+  const fundSignals = SIGNALS.filter(s=>s.funds.includes(fund));
+
+  return (
+    <div style={{fontFamily:sn,background:"#FAFAF8",minHeight:"100vh",maxWidth:430,margin:"0 auto",position:"relative",color:"#1A1A1A",opacity:loaded?1:0,transition:"opacity 0.5s ease",paddingBottom:80}}>
+
+      <Drawer open={drawerOpen} onClose={()=>setDrawerOpen(false)} page={page} onNav={nav}/>
+
+      {/* HEADER */}
+      <div style={{background:"#111",padding:"44px 14px 18px 10px",color:"#fff",position:"relative",zIndex:100}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:4}}>
+            <Hamburger open={drawerOpen} onClick={()=>setDrawerOpen(!drawerOpen)}/>
+            <div style={{paddingTop:4}}>
+              <div style={{fontSize:10,fontWeight:500,color:"#555",letterSpacing:2,fontFamily:mn,textTransform:"uppercase"}}>{page==="ceo"?"Command Center":"Materials Sector"}</div>
+              <div style={{fontSize:22,fontWeight:800,letterSpacing:-0.5,marginTop:1}}>{page==="ceo"?"CEO":"Morning Brief"}</div>
+            </div>
+          </div>
+          <div style={{textAlign:"right",paddingTop:4,paddingRight:6}}>
+            <div style={{fontSize:22,fontWeight:700,fontFamily:mn}}>{new Date().toLocaleDateString("en-US",{weekday:"short"}).toUpperCase()}</div>
+            <div style={{fontSize:10,color:"#666",fontFamily:mn}}>{new Date().toISOString().slice(0,10).replace(/-/g,".")}</div>
+          </div>
+        </div>
+
+        {page==="brief" && (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:1,marginTop:14,background:"#333",borderRadius:10,overflow:"hidden"}}>
+            {[
+              {l:"P&L",v:`${pnl>=0?"+":""}${pnl.toFixed(1)}%`,c:pnl>=0?"#34C759":"#FF3B30"},
+              {l:"Gross",v:`${F.metrics.grossExp.toFixed(0)}%`,c:"#fff"},
+              {l:"Net",v:`${F.metrics.netExp>=0?"+":""}${F.metrics.netExp.toFixed(0)}%`,c:"#fff"},
+              {l:"Beta",v:F.metrics.beta.toFixed(2),c:F.metrics.beta>0.8?"#FF9500":"#34C759"},
+            ].map((d,i)=>(
+              <div key={i} style={{background:"#222",padding:"10px 8px",textAlign:"center"}}>
+                <div style={{fontSize:8,color:"#666",fontFamily:mn,letterSpacing:0.5,marginBottom:3}}>{d.l}</div>
+                <div style={{fontSize:15,fontWeight:700,fontFamily:mn,color:d.c}}>{d.v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {page==="ceo" && <CEOPage onNav={nav}/>}
+
+      {page==="brief" && <React.Fragment>
+        <FundSelector active={fund} onChange={setFund}/>
+
+        <div style={{padding:"4px 16px 0",display:"flex",alignItems:"center",gap:6}}>
+          <div style={{width:8,height:8,borderRadius:4,background:F.color}}/>
+          <span style={{fontSize:12,fontWeight:600,color:"#999"}}>{F.name}</span>
+          {(fund==="LS"||fund==="MN")&&<span style={{fontSize:10,color:"#BBB",fontFamily:mn}}>L {longW.toFixed(0)}% / S {shortW.toFixed(0)}%</span>}
+          {fund==="HD"&&F.metrics.avgYld&&<span style={{fontSize:10,color:"#BBB",fontFamily:mn}}>Avg Yield {F.metrics.avgYld}%</span>}
+        </div>
+
+        <div style={{display:"flex",gap:0,padding:"0 20px",marginTop:10,marginBottom:4,background:"#F0EFED",borderRadius:8,marginLeft:16,marginRight:16,overflow:"hidden"}}>
+          {[{id:"brief",label:"☀ Brief"},{id:"portfolio",label:"◎ Portfolio"},{id:"deep",label:"◆ Deep Dive"}].map(v=>(
+            <button key={v.id} onClick={()=>setView(v.id)} style={{flex:1,padding:"9px 4px",border:"none",fontSize:11,fontWeight:600,fontFamily:sn,cursor:"pointer",borderRadius:6,margin:2,background:view===v.id?"#fff":"transparent",color:view===v.id?"#1A1A1A":"#999",boxShadow:view===v.id?"0 1px 3px rgba(0,0,0,0.08)":"none",transition:"all 0.2s"}}>{v.label}</button>
+          ))}
+        </div>
+
+        <div style={{padding:"0 16px"}}>
+
+          {view==="brief" && <React.Fragment>
+            <Section title="Sentiment" topGap={18}>
+              <div style={{background:"#fff",borderRadius:14,padding:"16px 18px",border:"1px solid #EDEDED"}}><FearGreedGauge {...FEAR_GREED}/></div>
+            </Section>
+
+            <Section title="Overnight Markets">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                {OVERNIGHT.map((m,i)=>(
+                  <div key={i} style={{background:"#fff",borderRadius:10,padding:"10px",border:"1px solid #EDEDED",textAlign:"center",animation:`fadeIn 0.3s ease ${i*0.05}s both`}}>
+                    <div style={{fontSize:11,fontWeight:500,color:"#888"}}>{m.flag} {m.market}</div>
+                    <div style={{fontSize:14,fontWeight:700,fontFamily:mn,marginTop:4}}>{m.close}</div>
+                    <div style={{fontSize:12,fontWeight:600,fontFamily:mn,marginTop:2,color:m.chg>=0?"#34C759":"#FF3B30"}}>{m.chg>=0?"+":""}{m.chg}%</div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Headlines">
+              {HEADLINES.map((h,i)=>(
+                <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:i<HEADLINES.length-1?"1px solid #F3F3F1":"none",animation:`fadeIn 0.3s ease ${i*0.06}s both`}}>
+                  <div style={{width:4,borderRadius:2,flexShrink:0,background:h.impact==="positive"?"#34C759":h.impact==="negative"?"#FF3B30":"#DDD"}}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:500,lineHeight:1.45}}>{h.text}</div>
+                    <div style={{display:"flex",gap:6,marginTop:4,alignItems:"center"}}>
+                      <span style={{fontSize:10,color:"#BBB",fontFamily:mn}}>{h.time}</span>
+                      <Pill color={h.tag==="commodity"?"#FF9500":h.tag==="macro"?"#5856D6":h.tag==="rates"?"#FF3B30":"#888"}>{h.tag}</Pill>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </Section>
+
+            <Section title={"Action Required · "+fund}>
+              {fundSignals.length===0&&<div style={{fontSize:12,color:"#BBB",padding:"8px 0"}}>No active signals for {F.name}</div>}
+              {fundSignals.map((s,i)=>(
+                <div key={i} style={{background:"#fff",borderRadius:12,padding:"12px 14px",border:"1px solid #EDEDED",marginBottom:6,borderLeft:`3px solid ${s.type==="event"?"#FF9500":s.type==="momentum"?"#34C759":s.type==="earnings"?"#5856D6":"#888"}`,animation:`fadeIn 0.3s ease ${i*0.06}s both`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:13,fontWeight:600}}>{s.name}</span>
+                      <span style={{fontSize:10,color:"#BBB",fontFamily:mn}}>{s.ticker}</span>
+                    </div>
+                    <Pill color={s.type==="event"?"#FF9500":s.type==="momentum"?"#34C759":s.type==="earnings"?"#5856D6":"#888"}>{s.signal}</Pill>
+                  </div>
+                  <div style={{fontSize:12,color:"#666",marginTop:6,lineHeight:1.5}}>{s.detail}</div>
+                </div>
+              ))}
+            </Section>
+
+            <Section title="Commodities">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                {COMMODITIES.map((c,i)=>(
+                  <div key={c.name} style={{background:"#fff",borderRadius:10,padding:"10px 12px",border:"1px solid #EDEDED",animation:`fadeIn 0.3s ease ${i*0.04}s both`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:11,fontWeight:500,color:"#888"}}>{c.name}</span>
+                      <Spark data={c.spark} color={c.chg>=0?"#34C759":"#FF3B30"}/>
+                    </div>
+                    <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:6}}>
+                      <span style={{fontSize:16,fontWeight:700,fontFamily:mn}}>{c.price.toLocaleString()}</span>
+                      <span style={{fontSize:11,fontWeight:600,fontFamily:mn,color:c.chg>=0?"#34C759":"#FF3B30"}}>{c.chg>=0?"+":""}{c.chg}%</span>
+                    </div>
+                    <div style={{fontSize:8,color:"#CCC",fontFamily:mn,marginTop:2}}>{c.unit}</div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Calendar">
+              <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
+                {EVENTS.map((e,i)=>(
+                  <div key={i} style={{minWidth:130,background:"#fff",borderRadius:10,padding:"10px 12px",border:"1px solid #EDEDED",flexShrink:0}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:13,fontWeight:700,fontFamily:mn}}>{e.date}</span>
+                      <span style={{fontSize:9,color:"#BBB",fontFamily:mn}}>in {e.days}d</span>
+                    </div>
+                    <div style={{fontSize:11,fontWeight:500,marginTop:6,lineHeight:1.4}}>{e.event}</div>
+                    <Pill color={e.type==="earn"?"#5856D6":"#FF9500"}>{e.type}</Pill>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Quick Note">
+              <div style={{display:"flex",gap:8}}>
+                <input value={noteText} onChange={e=>setNoteText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addNote()} placeholder="朝の気づきをメモ..." style={{flex:1,padding:"10px 14px",borderRadius:10,border:"1px solid #E8E8E8",fontSize:13,fontFamily:sn,outline:"none",background:"#fff"}}/>
+                <button onClick={addNote} style={{width:42,borderRadius:10,border:"none",background:"#1A1A1A",color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer"}}>+</button>
+              </div>
+            </Section>
+          </React.Fragment>}
+
+          {view==="portfolio" && <React.Fragment>
+            <Section title={F.name+" Positions"} topGap={18}>
+              {(fund==="LS"||fund==="MN")&&(
+                <div style={{display:"flex",gap:6,marginBottom:12}}>
+                  <div style={{flex:1,background:"#34C75910",borderRadius:8,padding:"8px 12px",textAlign:"center"}}>
+                    <div style={{fontSize:9,color:"#34C759",fontFamily:mn,fontWeight:600}}>LONG</div>
+                    <div style={{fontSize:16,fontWeight:700,fontFamily:mn,color:"#34C759"}}>{longW.toFixed(1)}%</div>
+                  </div>
+                  <div style={{flex:1,background:"#FF3B3010",borderRadius:8,padding:"8px 12px",textAlign:"center"}}>
+                    <div style={{fontSize:9,color:"#FF3B30",fontFamily:mn,fontWeight:600}}>SHORT</div>
+                    <div style={{fontSize:16,fontWeight:700,fontFamily:mn,color:"#FF3B30"}}>{shortW.toFixed(1)}%</div>
+                  </div>
+                  <div style={{flex:1,background:"#F5F5F3",borderRadius:8,padding:"8px 12px",textAlign:"center"}}>
+                    <div style={{fontSize:9,color:"#888",fontFamily:mn,fontWeight:600}}>NET</div>
+                    <div style={{fontSize:16,fontWeight:700,fontFamily:mn}}>{F.metrics.netExp>=0?"+":""}{F.metrics.netExp.toFixed(1)}%</div>
+                  </div>
+                </div>
+              )}
+              {fund==="HD"&&(
+                <div style={{display:"flex",gap:6,marginBottom:12}}>
+                  <div style={{flex:1,background:"#FF3B3010",borderRadius:8,padding:"8px 12px",textAlign:"center"}}>
+                    <div style={{fontSize:9,color:"#FF3B30",fontFamily:mn,fontWeight:600}}>AVG YIELD</div>
+                    <div style={{fontSize:16,fontWeight:700,fontFamily:mn,color:"#FF3B30"}}>{F.metrics.avgYld}%</div>
+                  </div>
+                  <div style={{flex:1,background:"#F5F5F3",borderRadius:8,padding:"8px 12px",textAlign:"center"}}>
+                    <div style={{fontSize:9,color:"#888",fontFamily:mn,fontWeight:600}}>BETA</div>
+                    <div style={{fontSize:16,fontWeight:700,fontFamily:mn}}>{F.metrics.beta}</div>
+                  </div>
+                  <div style={{flex:1,background:"#F5F5F3",borderRadius:8,padding:"8px 12px",textAlign:"center"}}>
+                    <div style={{fontSize:9,color:"#888",fontFamily:mn,fontWeight:600}}>EXPOSURE</div>
+                    <div style={{fontSize:16,fontWeight:700,fontFamily:mn}}>{F.metrics.grossExp}%</div>
+                  </div>
+                </div>
+              )}
+              <div style={{display:"flex",gap:4,marginBottom:10}}>
+                {[["weight","Wt"],["pnl","P&L"],["chg","1D"],["upside","Upside"]].map(([k,l])=>(
+                  <button key={k} onClick={()=>setPortSort(k)} style={{padding:"4px 8px",borderRadius:6,border:"none",fontSize:10,fontWeight:600,fontFamily:mn,background:portSort===k?"#1A1A1A":"#F0EFED",color:portSort===k?"#fff":"#999",cursor:"pointer",transition:"all 0.15s"}}>{l}</button>
+                ))}
+              </div>
+              {sorted.map((p,i)=>(
+                <div key={p.ticker+"-"+p.side} style={{background:"#fff",borderRadius:12,padding:"11px 13px",border:"1px solid #EDEDED",marginBottom:6,display:"flex",alignItems:"center",gap:10,animation:`fadeIn 0.25s ease ${i*0.03}s both`,borderLeft:(fund==="LS"||fund==="MN")?`3px solid ${p.side==="L"?"#34C759":"#FF3B30"}`:"none"}}>
+                  <div style={{width:36,height:36,borderRadius:8,background:p.side==="S"?"#FF3B3012":p.rating==="OW"?"#34C75912":"#F5F5F3",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,flexDirection:"column",gap:0}}>
+                    {(fund==="LS"||fund==="MN")&&<span style={{fontSize:8,fontWeight:700,fontFamily:mn,color:p.side==="L"?"#34C759":"#FF3B30"}}>{p.side}</span>}
+                    <span style={{fontSize:10,fontWeight:700,fontFamily:mn,color:p.rating==="OW"?"#34C759":p.rating==="UW"?"#FF3B30":"#999"}}>{p.rating}</span>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                    <div style={{fontSize:10,color:"#BBB",fontFamily:mn}}>{p.ticker} · {p.sector} · {Math.abs(p.weight)}%{fund==="HD"&&p.divYld?" · "+p.divYld+"%yld":""}</div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontSize:13,fontWeight:600,fontFamily:mn}}>{p.chg>=0?"+":""}{p.chg}%</div>
+                    <div style={{fontSize:10,fontFamily:mn,color:p.upside>=0?"#34C759":"#FF3B30"}}>TP {p.upside>=0?"+":""}{p.upside}%</div>
+                  </div>
+                </div>
+              ))}
+            </Section>
+
+            <Section title="Sector Exposure">
+              {(()=>{const sec={};pos.forEach(p=>{const k=p.sector;if(!sec[k])sec[k]={long:0,short:0};if(p.side==="L")sec[k].long+=p.weight;else sec[k].short+=Math.abs(p.weight)});const mx=Math.max(...Object.values(sec).map(v=>v.long+v.short));return Object.entries(sec).sort((a,b)=>(b[1].long+b[1].short)-(a[1].long+a[1].short)).map(([s,v])=>(
+                <div key={s} style={{marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{width:55,fontSize:11,fontWeight:500,color:"#888",flexShrink:0}}>{s}</div>
+                    <div style={{flex:1,height:20,background:"#F5F5F3",borderRadius:6,overflow:"hidden",display:"flex"}}>
+                      {v.long>0&&<div style={{height:"100%",width:`${(v.long/mx)*100}%`,background:"linear-gradient(90deg,#1A1A1A,#444)",borderRadius:"6px 0 0 6px",display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:4}}>
+                        <span style={{fontSize:9,fontWeight:600,fontFamily:mn,color:"#fff"}}>{v.long.toFixed(1)}</span>
+                      </div>}
+                      {v.short>0&&<div style={{height:"100%",width:`${(v.short/mx)*100}%`,background:"linear-gradient(90deg,#FF3B3080,#FF3B30)",borderRadius:"0 6px 6px 0",display:"flex",alignItems:"center",justifyContent:"flex-start",paddingLeft:4}}>
+                        <span style={{fontSize:9,fontWeight:600,fontFamily:mn,color:"#fff"}}>-{v.short.toFixed(1)}</span>
+                      </div>}
+                    </div>
+                  </div>
+                </div>
+              ))})()}
+            </Section>
+          </React.Fragment>}
+
+          {view==="deep" && <React.Fragment>
+            <Section title="Spread Monitor" topGap={18}>
+              {SPREADS.map((s,i)=>(
+                <div key={i} style={{background:"#fff",borderRadius:12,padding:"12px 14px",border:"1px solid #EDEDED",marginBottom:6}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:13,fontWeight:600}}>{s.name}</span>
+                    <Pill color={s.trend==="expanding"?"#34C759":"#FF3B30"}>{s.trend}</Pill>
+                  </div>
+                  <div style={{display:"flex",gap:20,marginTop:8}}>
+                    <div><div style={{fontSize:9,color:"#BBB",fontFamily:mn}}>Current</div><div style={{fontSize:18,fontWeight:700,fontFamily:mn}}>{s.current.toLocaleString()}</div></div>
+                    <div><div style={{fontSize:9,color:"#BBB",fontFamily:mn}}>1Y Avg</div><div style={{fontSize:18,fontWeight:500,fontFamily:mn,color:"#999"}}>{s.avg.toLocaleString()}</div></div>
+                    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"flex-end"}}>
+                      <div style={{fontSize:14,fontWeight:700,fontFamily:mn,color:s.current>s.avg?"#34C759":"#FF3B30"}}>{s.current>s.avg?"+":""}{((s.current-s.avg)/s.avg*100).toFixed(1)}%</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </Section>
+            <Section title="Macro Pulse">
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                {MACRO.map((m,i)=>(
+                  <div key={i} style={{background:"#fff",borderRadius:10,padding:"10px 12px",border:"1px solid #EDEDED"}}>
+                    <div style={{fontSize:10,color:"#999",fontWeight:500,marginBottom:4}}>{m.name}</div>
+                    <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                      <span style={{fontSize:16,fontWeight:700,fontFamily:mn,color:m.signal==="up"?"#34C759":"#FF3B30"}}>{m.value}</span>
+                      <span style={{fontSize:10,color:"#CCC",fontFamily:mn}}>← {m.prev}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+            <Section title="Research Notes">
+              <div style={{display:"flex",gap:8,marginBottom:10}}>
+                <input value={noteText} onChange={e=>setNoteText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addNote()} placeholder="メモを追加..." style={{flex:1,padding:"10px 14px",borderRadius:10,border:"1px solid #E8E8E8",fontSize:13,fontFamily:sn,outline:"none",background:"#fff"}}/>
+                <button onClick={addNote} style={{width:42,borderRadius:10,border:"none",background:"#1A1A1A",color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer"}}>+</button>
+              </div>
+              {notes.map((n,i)=>(
+                <div key={n.id} style={{background:"#fff",borderRadius:12,padding:"11px 13px",border:"1px solid #EDEDED",marginBottom:6}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:10,color:"#BBB",fontFamily:mn}}>{n.date}</span>
+                    {n.ticker&&<Pill>{n.ticker}</Pill>}
+                  </div>
+                  <div style={{fontSize:12,lineHeight:1.5,color:"#444"}}>{n.text}</div>
+                </div>
+              ))}
+            </Section>
+          </React.Fragment>}
+        </div>
+      </React.Fragment>}
+
+      {/* BOTTOM */}
+      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"rgba(250,250,248,0.9)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderTop:"1px solid #E8E8E8",padding:"8px 20px 24px",display:"flex",justifyContent:"center"}}>
+        <div style={{fontSize:9,color:"#CCC",fontFamily:mn,letterSpacing:0.5}}>MATERIALS RESEARCH PORTAL · DUMMY DATA</div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>

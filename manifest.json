@@ -1,0 +1,8 @@
+{
+  "name": "CEO Portal",
+  "short_name": "CEO",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#111111"
+}
