@@ -84,7 +84,7 @@ const FUNDS = {
 
 const FUND_IDS = ["LO","LS","MN","HD"];
 
-const FEAR_GREED = {value:38,label:"Fear",prev:42,weekAgo:55};
+const FG_FALLBACK = {value:38,label:"Fear",prev:42,weekAgo:55,history:[]};
 
 const OVERNIGHT = [
   {market:"S&P 500",close:"5,842",chg:-0.34,flag:"🇺🇸"},{market:"NASDAQ",close:"18,290",chg:-0.58,flag:"🇺🇸"},
@@ -395,6 +395,20 @@ function App() {
   const [noteText,setNoteText] = useState("");
   const [notes,setNotes] = useState(NOTES_INIT);
   const [portSort,setPortSort] = useState("weight");
+  const [fearGreed,setFearGreed] = useState(FG_FALLBACK);
+
+  useEffect(()=>{
+    fetch("https://hiroki-ikkyu.github.io/Datawarehouse/Data/Sentiment/fear-greed.json")
+      .then(r=>r.json())
+      .then(d=>setFearGreed({
+        value:d.current.value,
+        label:d.current.label,
+        prev:d.prev_close,
+        weekAgo:d.week_ago,
+        history:d.history||[]
+      }))
+      .catch(()=>{});
+  },[]);
 
   useEffect(()=>{setTimeout(()=>setLoaded(true),80)},[]);
 
@@ -475,7 +489,15 @@ function App() {
 
           {view==="brief" && <React.Fragment>
             <Section title="Sentiment" topGap={18}>
-              <div style={{background:"#fff",borderRadius:14,padding:"16px 18px",border:"1px solid #EDEDED"}}><FearGreedGauge {...FEAR_GREED}/></div>
+              <div style={{background:"#fff",borderRadius:14,padding:"16px 18px",border:"1px solid #EDEDED"}}>
+                <FearGreedGauge value={fearGreed.value} label={fearGreed.label} prev={fearGreed.prev} weekAgo={fearGreed.weekAgo}/>
+                {fearGreed.history.length>0&&(
+                  <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #F3F3F1"}}>
+                    <div style={{fontSize:9,color:"#BBB",fontFamily:mn,letterSpacing:0.5,marginBottom:4}}>30D HISTORY</div>
+                    <Spark data={fearGreed.history.slice(-30).map(h=>h.value)} color="#FF9500" w={260} h={28}/>
+                  </div>
+                )}
+              </div>
             </Section>
 
             <Section title="Overnight Markets">
