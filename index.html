@@ -431,8 +431,8 @@ function App() {
             </div>
           </div>
           <div style={{textAlign:"right",paddingTop:4,paddingRight:6}}>
-            <div style={{fontSize:22,fontWeight:700,fontFamily:mn}}>{new Date().toLocaleDateString("en-US",{weekday:"short"}).toUpperCase()}</div>
-            <div style={{fontSize:10,color:"#666",fontFamily:mn}}>{new Date().toISOString().slice(0,10).replace(/-/g,".")}</div>
+            <div style={{fontSize:22,fontWeight:700,fontFamily:mn}}>{new Date().toLocaleDateString("en-US",{weekday:"short",timeZone:"Asia/Tokyo"}).toUpperCase()}</div>
+            <div style={{fontSize:10,color:"#666",fontFamily:mn}}>{new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Tokyo"}).replace(/-/g,".")}</div>
           </div>
         </div>
 
