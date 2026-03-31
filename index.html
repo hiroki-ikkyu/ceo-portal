@@ -85,6 +85,7 @@ const FUNDS = {
 const FUND_IDS = ["LO","LS","MN","HD"];
 
 const FG_FALLBACK = {value:38,label:"Fear",prev:42,weekAgo:55,history:[]};
+const CFG_FALLBACK = {value:25,label:"Extreme Fear",prev:28,weekAgo:34,history:[]};
 
 const OVERNIGHT = [
   {market:"S&P 500",close:"5,842",chg:-0.34,flag:"🇺🇸"},{market:"NASDAQ",close:"18,290",chg:-0.58,flag:"🇺🇸"},
@@ -396,17 +397,16 @@ function App() {
   const [notes,setNotes] = useState(NOTES_INIT);
   const [portSort,setPortSort] = useState("weight");
   const [fearGreed,setFearGreed] = useState(FG_FALLBACK);
+  const [cryptoFG,setCryptoFG] = useState(CFG_FALLBACK);
 
   useEffect(()=>{
     fetch("https://hiroki-ikkyu.github.io/Datawarehouse/Data/Sentiment/fear-greed.json")
       .then(r=>r.json())
-      .then(d=>setFearGreed({
-        value:d.current.value,
-        label:d.current.label,
-        prev:d.prev_close,
-        weekAgo:d.week_ago,
-        history:d.history||[]
-      }))
+      .then(d=>setFearGreed({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[]}))
+      .catch(()=>{});
+    fetch("https://hiroki-ikkyu.github.io/Datawarehouse/Data/Sentiment/crypto-fear-greed.json")
+      .then(r=>r.json())
+      .then(d=>setCryptoFG({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[]}))
       .catch(()=>{});
   },[]);
 
@@ -489,14 +489,22 @@ function App() {
 
           {view==="brief" && <React.Fragment>
             <Section title="Sentiment" topGap={18}>
-              <div style={{background:"#fff",borderRadius:14,padding:"16px 18px",border:"1px solid #EDEDED"}}>
-                <FearGreedGauge value={fearGreed.value} label={fearGreed.label} prev={fearGreed.prev} weekAgo={fearGreed.weekAgo}/>
-                {fearGreed.history.length>0&&(
-                  <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #F3F3F1"}}>
-                    <div style={{fontSize:9,color:"#BBB",fontFamily:mn,letterSpacing:0.5,marginBottom:4}}>30D HISTORY</div>
-                    <Spark data={fearGreed.history.slice(-30).map(h=>h.value)} color="#FF9500" w={260} h={28}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[
+                  {title:"Stock",data:fearGreed,color:"#FF9500"},
+                  {title:"Crypto",data:cryptoFG,color:"#5856D6"},
+                ].map(({title,data,color})=>(
+                  <div key={title} style={{background:"#fff",borderRadius:14,padding:"12px 14px",border:"1px solid #EDEDED"}}>
+                    <div style={{fontSize:9,fontWeight:600,color:"#AAA",fontFamily:mn,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>{title}</div>
+                    <FearGreedGauge value={data.value} label={data.label} prev={data.prev} weekAgo={data.weekAgo}/>
+                    {data.history.length>0&&(
+                      <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #F3F3F1"}}>
+                        <div style={{fontSize:9,color:"#BBB",fontFamily:mn,letterSpacing:0.5,marginBottom:4}}>30D</div>
+                        <Spark data={data.history.slice(-30).map(h=>h.value)} color={color} w={120} h={24}/>
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
             </Section>
 
