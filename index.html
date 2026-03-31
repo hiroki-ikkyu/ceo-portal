@@ -14,6 +14,7 @@ body{margin:0;-webkit-font-smoothing:antialiased;font-family:'Outfit',sans-serif
 *{box-sizing:border-box}
 ::-webkit-scrollbar{display:none}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeInChart{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 </style>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -84,8 +85,8 @@ const FUNDS = {
 
 const FUND_IDS = ["LO","LS","MN","HD"];
 
-const FG_FALLBACK = {value:38,label:"Fear",prev:42,weekAgo:55,history:[]};
-const CFG_FALLBACK = {value:25,label:"Extreme Fear",prev:28,weekAgo:34,history:[]};
+const FG_FALLBACK = {value:38,label:"Fear",prev:42,weekAgo:55,history:[],updated:''};
+const CFG_FALLBACK = {value:25,label:"Extreme Fear",prev:28,weekAgo:34,history:[],updated:''};
 
 const OVERNIGHT = [
   {market:"S&P 500",close:"5,842",chg:-0.34,flag:"🇺🇸"},{market:"NASDAQ",close:"18,290",chg:-0.58,flag:"🇺🇸"},
@@ -163,6 +164,15 @@ const FIXED_APPS = [
 const mn = "'JetBrains Mono','DM Mono',monospace";
 const sn = "'Outfit',sans-serif";
 
+const fmtUpdated = (ts) => {
+  if (!ts) return '';
+  const d = new Date(typeof ts === 'number' ? ts * 1000 : ts);
+  const parts = new Intl.DateTimeFormat('en-US', {timeZone:'Asia/Tokyo',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d);
+  const p = {};
+  parts.forEach(({type,value}) => p[type] = value);
+  return `${p.month}/${p.day} ${p.hour}:${p.minute}`;
+};
+
 const Spark = ({data,color,w=56,h=20}) => {
   const mi=Math.min(...data),mx=Math.max(...data),r=mx-mi||1;
   const pts=data.map((v,i)=>`${(i/(data.length-1))*w},${h-((v-mi)/r)*h}`).join(" ");
@@ -185,45 +195,79 @@ const Section = ({title,children,topGap}) => (
   </div>
 );
 
-const FearGreedGauge = ({value,label,prev,weekAgo}) => {
+const FearGreedGauge = ({value}) => {
   const angle=-90+(value/100)*180;
   const gc=v=>v<=25?"#FF3B30":v<=45?"#FF9500":v<=55?"#FFD60A":v<=75?"#8CC63F":"#34C759";
   const color=gc(value);
   return (
-    <div style={{display:"flex",alignItems:"center",gap:10}}>
-      <div style={{position:"relative",width:70,height:40,flexShrink:0}}>
-        <svg width="70" height="40" viewBox="0 0 100 56">
-          <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#FF3B30"/><stop offset="25%" stopColor="#FF9500"/><stop offset="50%" stopColor="#FFD60A"/><stop offset="75%" stopColor="#8CC63F"/><stop offset="100%" stopColor="#34C759"/></linearGradient></defs>
-          <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#F0F0F0" strokeWidth="6" strokeLinecap="round"/>
-          <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#gg)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(value/100)*126} 126`}/>
-          <line x1="50" y1="50" x2="50" y2="16" stroke={color} strokeWidth="1.5" strokeLinecap="round" transform={`rotate(${angle} 50 50)`} style={{transition:"transform 1s cubic-bezier(0.34,1.56,0.64,1)"}}/>
-          <circle cx="50" cy="50" r="3" fill={color}/>
-        </svg>
-        <div style={{position:"absolute",bottom:0,left:0,right:0,textAlign:"center"}}><span style={{fontSize:14,fontWeight:700,fontFamily:mn,color}}>{value}</span></div>
-      </div>
-      <div>
-        <div style={{fontSize:11,fontWeight:700,color}}>{label}</div>
-        <div style={{fontSize:9,color:"#AAA",fontFamily:mn,marginTop:2}}>prev {prev} · 1w {weekAgo}</div>
-      </div>
+    <div style={{position:"relative",width:64,height:36,flexShrink:0}}>
+      <svg width="64" height="36" viewBox="0 0 100 56">
+        <defs><linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#FF3B30"/><stop offset="25%" stopColor="#FF9500"/><stop offset="50%" stopColor="#FFD60A"/><stop offset="75%" stopColor="#8CC63F"/><stop offset="100%" stopColor="#34C759"/></linearGradient></defs>
+        <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#F0F0F0" strokeWidth="6" strokeLinecap="round"/>
+        <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#gg)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(value/100)*126} 126`}/>
+        <line x1="50" y1="50" x2="50" y2="16" stroke={color} strokeWidth="1.5" strokeLinecap="round" transform={`rotate(${angle} 50 50)`} style={{transition:"transform 1s cubic-bezier(0.34,1.56,0.64,1)"}}/>
+        <circle cx="50" cy="50" r="3" fill={color}/>
+      </svg>
+      <div style={{position:"absolute",bottom:0,left:0,right:0,textAlign:"center"}}><span style={{fontSize:13,fontWeight:700,fontFamily:mn,color}}>{value}</span></div>
     </div>
   );
 };
 
-const SentimentChart = ({history}) => {
+const SentimentExpandChart = ({data,label}) => {
+  const [period,setPeriod] = useState('1Y');
   const gc = v=>v<=25?"#FF3B30":v<=45?"#FF9500":v<=55?"#FFD60A":v<=75?"#8CC63F":"#34C759";
-  const data = history.slice(-365);
-  if (!data.length) return null;
-  const n = data.length;
-  const x = i => n===1 ? 182 : (i/(n-1))*364;
-  const pts = data.map((d,i)=>`${x(i).toFixed(1)},${100-d.value}`).join(' ');
-  const last = data[n-1];
+  const history = data.history||[];
+  const now = Date.now();
+  const days = period==='6M'?182:period==='1Y'?365:730;
+  const filtered = history.filter(d=>{
+    const t = d.timestamp?d.timestamp*1000:(d.date?new Date(d.date).getTime():0);
+    return t >= now - days*86400000;
+  });
+  const n = filtered.length;
+  const W = 364, H = 100;
+  const gx = i => n<=1?W/2:(i/(n-1))*W;
+  const gy = v => H-v;
+  const pts = n?filtered.map((d,i)=>`${gx(i).toFixed(1)},${gy(d.value).toFixed(1)}`).join(' '):'';
+  const last = n?filtered[n-1]:null;
+  const interval = period==='2Y'?3:period==='1Y'?2:1;
+  const mLabels = [];
+  if(n>1){
+    let lastMo=-1,cnt=0;
+    filtered.forEach((d,i)=>{
+      const t = d.timestamp?d.timestamp*1000:(d.date?new Date(d.date).getTime():0);
+      const mo = new Date(t).getMonth();
+      if(mo!==lastMo){
+        if(cnt%interval===0) mLabels.push({x:gx(i),text:new Date(t).toLocaleDateString('en-US',{month:'short'})});
+        lastMo=mo;cnt++;
+      }
+    });
+  }
   return (
-    <svg width="100%" height="120" viewBox="0 0 364 100" preserveAspectRatio="none" style={{display:"block"}}>
-      <rect x="0" y="0" width="364" height="25" fill="#34C75915"/>
-      <rect x="0" y="75" width="364" height="25" fill="#FF3B3015"/>
-      <polyline points={pts} fill="none" stroke="#666" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
-      <circle cx={x(n-1).toFixed(1)} cy={100-last.value} r="4" fill={gc(last.value)} vectorEffect="non-scaling-stroke"/>
-    </svg>
+    <div style={{background:'#fff',borderRadius:12,border:'1px solid #EDEDED',padding:'10px 12px',marginTop:6,animation:'fadeInChart 0.3s ease',overflow:'hidden'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+        <div style={{fontSize:9,color:'#AAA',fontFamily:mn,textTransform:'uppercase',letterSpacing:1}}>{label}</div>
+        <div style={{display:'flex',gap:3}}>
+          {['6M','1Y','2Y'].map(p=>(
+            <button key={p} onClick={()=>setPeriod(p)} style={{padding:'2px 8px',borderRadius:4,border:'none',cursor:'pointer',fontSize:9,fontWeight:600,fontFamily:mn,background:period===p?'#1A1A1A':'#F0EFED',color:period===p?'#fff':'#BBB',WebkitTapHighlightColor:'transparent'}}>{p}</button>
+          ))}
+        </div>
+      </div>
+      {!n&&<div style={{fontSize:10,color:'#CCC',fontFamily:mn,padding:'16px 0',textAlign:'center'}}>No data</div>}
+      {n>0&&(
+        <svg width="100%" height="120" viewBox={`0 0 ${W} 114`} preserveAspectRatio="none" style={{display:'block'}}>
+          <rect x="0" y="0" width={W} height="25" fill="#34C759" opacity="0.08"/>
+          <rect x="0" y="75" width={W} height="25" fill="#FF3B30" opacity="0.08"/>
+          <line x1="0" y1="25" x2={W} y2="25" stroke="#E8E8E8" strokeWidth="0.15"/>
+          <line x1="0" y1="50" x2={W} y2="50" stroke="#E8E8E8" strokeWidth="0.15"/>
+          <line x1="0" y1="75" x2={W} y2="75" stroke="#E8E8E8" strokeWidth="0.15"/>
+          <polyline points={pts} fill="none" stroke="#888" strokeWidth="0.4" strokeLinejoin="round" strokeLinecap="round"/>
+          {last&&<circle cx={gx(n-1).toFixed(1)} cy={gy(last.value).toFixed(1)} r="1.2" fill={gc(last.value)}/>}
+          {mLabels.map((ml,i)=>(
+            <text key={i} x={ml.x.toFixed(1)} y="112" fontSize="8" fill="#AAA" textAnchor="middle" fontFamily="JetBrains Mono,monospace">{ml.text}</text>
+          ))}
+        </svg>
+      )}
+    </div>
   );
 };
 
@@ -421,11 +465,11 @@ function App() {
   useEffect(()=>{
     fetch("https://hiroki-ikkyu.github.io/Datawarehouse/Data/Sentiment/fear-greed.json")
       .then(r=>r.json())
-      .then(d=>setFearGreed({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[]}))
+      .then(d=>setFearGreed({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[],updated:d.updated||''}))
       .catch(()=>{});
     fetch("https://hiroki-ikkyu.github.io/Datawarehouse/Data/Sentiment/crypto-fear-greed.json")
       .then(r=>r.json())
-      .then(d=>setCryptoFG({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[]}))
+      .then(d=>setCryptoFG({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[],updated:d.updated||''}))
       .catch(()=>{});
   },[]);
 
@@ -508,28 +552,39 @@ function App() {
 
           {view==="brief" && <React.Fragment>
             <Section title="Sentiment" topGap={18}>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {[
-                  {key:"fg",title:"Fear & Greed",data:fearGreed},
-                  {key:"cfg",title:"Crypto F&G",data:cryptoFG},
-                ].map(({key,title,data})=>{
+                  {key:"fg",label:"FEAR & GREED",data:fearGreed},
+                  {key:"cfg",label:"CRYPTO F&G",data:cryptoFG},
+                ].map(({key,label,data})=>{
                   const open=chartOpen[key];
+                  const gc=v=>v<=25?"#FF3B30":v<=45?"#FF9500":v<=55?"#FFD60A":v<=75?"#8CC63F":"#34C759";
+                  const color=gc(data.value);
+                  const updStr=fmtUpdated(data.updated);
                   return (
-                    <div key={key} style={{background:"#fff",borderRadius:14,border:"1px solid #EDEDED",minWidth:0,overflow:"hidden"}}>
-                      <div style={{padding:"12px"}}>
-                        <div style={{fontSize:9,fontWeight:600,color:"#AAA",fontFamily:mn,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>{title}</div>
-                        <FearGreedGauge value={data.value} label={data.label} prev={data.prev} weekAgo={data.weekAgo}/>
+                    <div key={key} style={{background:"#fff",borderRadius:12,border:"1px solid #EDEDED",padding:"10px 12px",minWidth:0}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                        <div style={{fontSize:9,fontWeight:600,color:"#AAA",fontFamily:mn,letterSpacing:1,textTransform:"uppercase"}}>{label}</div>
+                        <div style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer"}} onClick={()=>setChartOpen(s=>({...s,[key]:!s[key]}))}>
+                          {updStr&&<span style={{fontSize:9,color:"#BBB",fontFamily:mn}}>{updStr}</span>}
+                          <svg width="7" height="7" viewBox="0 0 10 10" style={{display:'block',transform:open?'rotate(90deg)':'rotate(0deg)',transition:'transform 0.25s',flexShrink:0}}>
+                            <polygon points="2,1 8,5 2,9" fill="#CCCCCC"/>
+                          </svg>
+                        </div>
                       </div>
-                      <button onClick={()=>setChartOpen(s=>({...s,[key]:!s[key]}))} style={{display:"block",width:"100%",padding:"5px 0",background:"#FAFAFA",border:"none",borderTop:"1px solid #F0F0F0",cursor:"pointer",fontSize:10,color:"#BBB",fontFamily:mn,letterSpacing:0.5,WebkitTapHighlightColor:"transparent"}}>
-                        {open?"▼ 1Y":"▶ 1Y"}
-                      </button>
-                      <div style={{maxHeight:open?130:0,overflow:"hidden",transition:"max-height 0.3s ease"}}>
-                        <SentimentChart history={data.history}/>
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <FearGreedGauge value={data.value}/>
+                        <div>
+                          <div style={{fontSize:11,fontWeight:700,color}}>{data.label}</div>
+                          <div style={{fontSize:9,color:"#BBB",fontFamily:mn,marginTop:2}}>prev {data.prev} · 1w {data.weekAgo}</div>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
+              {chartOpen.fg&&<SentimentExpandChart data={fearGreed} label="FEAR & GREED"/>}
+              {chartOpen.cfg&&<SentimentExpandChart data={cryptoFG} label="CRYPTO F&G"/>}
             </Section>
 
             <Section title="Overnight Markets">
