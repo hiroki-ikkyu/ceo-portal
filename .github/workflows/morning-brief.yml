@@ -1,0 +1,39 @@
+name: Tokyo Morning Brief
+
+on:
+  # 毎朝 21:00 UTC = 翌日 06:00 JST (月〜金)
+  schedule:
+    - cron: '0 21 * * 0-4'  # Sun-Thu UTC = Mon-Fri JST morning
+
+  # 手動実行も可能
+  workflow_dispatch:
+
+jobs:
+  generate-brief:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Generate Morning Brief
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OUTPUT_DIR: briefs
+        run: python scripts/morning_brief.py
+
+      - name: Commit and push brief
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add briefs/
+          git diff --cached --quiet || git commit -m "Add morning brief for $(date -u +%Y-%m-%d)"
+          git push

@@ -88,12 +88,15 @@ const FUND_IDS = ["LO","LS","MN","HD"];
 const FG_FALLBACK = {value:38,label:"Fear",prev:42,weekAgo:55,history:[],updated:''};
 const CFG_FALLBACK = {value:25,label:"Extreme Fear",prev:28,weekAgo:34,history:[],updated:''};
 
+/* OVERNIGHT — ダミーデータ。実データ連携後に復活予定
 const OVERNIGHT = [
   {market:"S&P 500",close:"5,842",chg:-0.34,flag:"🇺🇸"},{market:"NASDAQ",close:"18,290",chg:-0.58,flag:"🇺🇸"},
   {market:"Euro Stoxx",close:"4,985",chg:0.22,flag:"🇪🇺"},{market:"Shanghai",close:"3,265",chg:-0.81,flag:"🇨🇳"},
   {market:"Hang Seng",close:"17,840",chg:-1.12,flag:"🇭🇰"},{market:"ASX 200",close:"7,920",chg:0.15,flag:"🇦🇺"},
 ];
+*/
 
+/* HEADLINES — Bloomberg連携後に復活予定（6月〜）
 const HEADLINES = [
   {time:"06:30",text:"China Caixin PMI 51.2 (est 50.5)、3ヶ月ぶり高水準",tag:"macro",impact:"positive"},
   {time:"05:15",text:"Vale、Carajás鉱山で操業一時停止 — 鉄鉱石先物+1.8%",tag:"commodity",impact:"positive"},
@@ -101,14 +104,18 @@ const HEADLINES = [
   {time:"02:30",text:"LME銅在庫 5日連続減少、プレミアム拡大傾向",tag:"commodity",impact:"positive"},
   {time:"01:00",text:"EU CBAM移行期間レポート公表 — 鉄鋼業界への影響注視",tag:"regulation",impact:"neutral"},
 ];
+*/
 
+/* SIGNALS — ダミーデータ。実データ連携後に復活予定
 const SIGNALS = [
   {ticker:"5713",name:"住友鉱山",signal:"Approaching TP",detail:"TP ¥5,500 まで残り20%。Cu価格堅調 → 上方修正検討",type:"review",funds:["LO","LS","MN"]},
   {ticker:"4005",name:"住友化学",signal:"Strong momentum",detail:"1D +4.5%, 5D +8.2%。石化スプレッド改善織り込み中",type:"momentum",funds:["LO","LS","HD"]},
   {ticker:"VALE",name:"Vale SA",signal:"Carajás停止リスク",detail:"操業停止報道 → 短期供給懸念。UWポジ再考?",type:"event",funds:["LS"]},
   {ticker:"5411",name:"JFE HD",signal:"決算3/31",detail:"コンセンサス上振れ期待。HRC margin拡大を確認済",type:"earnings",funds:["LO","MN","HD"]},
 ];
+*/
 
+/* COMMODITIES — ダミーデータ。実データ連携後に復活予定
 const COMMODITIES = [
   {name:"Iron Ore",price:108.5,chg:1.8,unit:"$/t",spark:[102,105,103,107,106,108,110,108,107,109,108.5]},
   {name:"Copper",price:9245,chg:-0.4,unit:"$/t",spark:[9100,9200,9350,9280,9310,9250,9180,9220,9260,9300,9245]},
@@ -117,6 +124,7 @@ const COMMODITIES = [
   {name:"Ethylene",price:945,chg:0.3,unit:"$/t",spark:[920,925,930,935,940,938,942,945,948,943,945]},
   {name:"Nickel",price:16850,chg:2.1,unit:"$/t",spark:[16200,16400,16500,16600,16700,16650,16800,16750,16900,16820,16850]},
 ];
+*/
 
 const SPREADS = [
   {name:"Ethylene-Naphtha",current:317,avg:298,trend:"expanding"},
@@ -135,6 +143,7 @@ const MACRO = [
   {name:"EU Carbon",value:"€68.5",prev:"€71.2",signal:"down"},
 ];
 
+/* EVENTS — ダミーデータ。実データ連携後に復活予定
 const EVENTS = [
   {date:"3/31",event:"住友鉱山 4Q決算",type:"earn",days:2},
   {date:"4/1",event:"Caixin PMI",type:"macro",days:3},
@@ -142,6 +151,7 @@ const EVENTS = [
   {date:"4/7",event:"BHP Q3 Production",type:"earn",days:9},
   {date:"4/10",event:"US CPI",type:"macro",days:12},
 ];
+*/
 
 const NOTES_INIT = [
   {id:1,date:"3/28",text:"住友鉱山: QB Project進捗。Cu FY25ガイダンス上振れ余地。",ticker:"5713"},
@@ -512,7 +522,7 @@ function App() {
   );
 
   const nav = (p) => {setPage(p);window.scrollTo(0,0)};
-  const fundSignals = SIGNALS.filter(s=>s.funds.includes(fund));
+  // const fundSignals = SIGNALS.filter(s=>s.funds.includes(fund)); // SIGNALS commented out — placeholder shown
 
   return (
     <div style={{fontFamily:sn,background:"#FAFAF8",minHeight:"100vh",maxWidth:430,margin:"0 auto",position:"relative",color:"#1A1A1A",opacity:loaded?1:0,transition:"opacity 0.5s ease",paddingBottom:80}}>
@@ -645,78 +655,32 @@ function App() {
             </Section>
 
             <Section title="Overnight Markets">
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-                {OVERNIGHT.map((m,i)=>(
-                  <div key={i} style={{background:"#fff",borderRadius:10,padding:"10px",border:"1px solid #EDEDED",textAlign:"center",animation:`fadeIn 0.3s ease ${i*0.05}s both`}}>
-                    <div style={{fontSize:11,fontWeight:500,color:"#888"}}>{m.flag} {m.market}</div>
-                    <div style={{fontSize:14,fontWeight:700,fontFamily:mn,marginTop:4}}>{m.close}</div>
-                    <div style={{fontSize:12,fontWeight:600,fontFamily:mn,marginTop:2,color:m.chg>=0?"#34C759":"#FF3B30"}}>{m.chg>=0?"+":""}{m.chg}%</div>
-                  </div>
-                ))}
+              <div style={{borderRadius:12,border:"1px dashed #DDD",padding:16,textAlign:"center"}}>
+                <span style={{fontSize:9,color:"#CCC",fontFamily:mn}}>実データ連携予定</span>
               </div>
             </Section>
 
             <Section title="Headlines">
-              {HEADLINES.map((h,i)=>(
-                <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:i<HEADLINES.length-1?"1px solid #F3F3F1":"none",animation:`fadeIn 0.3s ease ${i*0.06}s both`}}>
-                  <div style={{width:4,borderRadius:2,flexShrink:0,background:h.impact==="positive"?"#34C759":h.impact==="negative"?"#FF3B30":"#DDD"}}/>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:13,fontWeight:500,lineHeight:1.45}}>{h.text}</div>
-                    <div style={{display:"flex",gap:6,marginTop:4,alignItems:"center"}}>
-                      <span style={{fontSize:10,color:"#BBB",fontFamily:mn}}>{h.time}</span>
-                      <Pill color={h.tag==="commodity"?"#FF9500":h.tag==="macro"?"#5856D6":h.tag==="rates"?"#FF3B30":"#888"}>{h.tag}</Pill>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              <div style={{borderRadius:12,border:"1px dashed #DDD",padding:16,textAlign:"center"}}>
+                <span style={{fontSize:9,color:"#CCC",fontFamily:mn}}>Bloomberg連携後に表示（6月〜）</span>
+              </div>
             </Section>
 
             <Section title={"Action Required · "+fund}>
-              {fundSignals.length===0&&<div style={{fontSize:12,color:"#BBB",padding:"8px 0"}}>No active signals for {F.name}</div>}
-              {fundSignals.map((s,i)=>(
-                <div key={i} style={{background:"#fff",borderRadius:12,padding:"12px 14px",border:"1px solid #EDEDED",marginBottom:6,borderLeft:`3px solid ${s.type==="event"?"#FF9500":s.type==="momentum"?"#34C759":s.type==="earnings"?"#5856D6":"#888"}`,animation:`fadeIn 0.3s ease ${i*0.06}s both`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <span style={{fontSize:13,fontWeight:600}}>{s.name}</span>
-                      <span style={{fontSize:10,color:"#BBB",fontFamily:mn}}>{s.ticker}</span>
-                    </div>
-                    <Pill color={s.type==="event"?"#FF9500":s.type==="momentum"?"#34C759":s.type==="earnings"?"#5856D6":"#888"}>{s.signal}</Pill>
-                  </div>
-                  <div style={{fontSize:12,color:"#666",marginTop:6,lineHeight:1.5}}>{s.detail}</div>
-                </div>
-              ))}
+              <div style={{borderRadius:12,border:"1px dashed #DDD",padding:16,textAlign:"center"}}>
+                <span style={{fontSize:9,color:"#CCC",fontFamily:mn}}>実データ連携予定</span>
+              </div>
             </Section>
 
             <Section title="Commodities">
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                {COMMODITIES.map((c,i)=>(
-                  <div key={c.name} style={{background:"#fff",borderRadius:10,padding:"10px 12px",border:"1px solid #EDEDED",animation:`fadeIn 0.3s ease ${i*0.04}s both`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{fontSize:11,fontWeight:500,color:"#888"}}>{c.name}</span>
-                      <Spark data={c.spark} color={c.chg>=0?"#34C759":"#FF3B30"}/>
-                    </div>
-                    <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:6}}>
-                      <span style={{fontSize:16,fontWeight:700,fontFamily:mn}}>{c.price.toLocaleString()}</span>
-                      <span style={{fontSize:11,fontWeight:600,fontFamily:mn,color:c.chg>=0?"#34C759":"#FF3B30"}}>{c.chg>=0?"+":""}{c.chg}%</span>
-                    </div>
-                    <div style={{fontSize:8,color:"#CCC",fontFamily:mn,marginTop:2}}>{c.unit}</div>
-                  </div>
-                ))}
+              <div style={{borderRadius:12,border:"1px dashed #DDD",padding:16,textAlign:"center"}}>
+                <span style={{fontSize:9,color:"#CCC",fontFamily:mn}}>実データ連携予定</span>
               </div>
             </Section>
 
             <Section title="Calendar">
-              <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
-                {EVENTS.map((e,i)=>(
-                  <div key={i} style={{minWidth:130,background:"#fff",borderRadius:10,padding:"10px 12px",border:"1px solid #EDEDED",flexShrink:0}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{fontSize:13,fontWeight:700,fontFamily:mn}}>{e.date}</span>
-                      <span style={{fontSize:9,color:"#BBB",fontFamily:mn}}>in {e.days}d</span>
-                    </div>
-                    <div style={{fontSize:11,fontWeight:500,marginTop:6,lineHeight:1.4}}>{e.event}</div>
-                    <Pill color={e.type==="earn"?"#5856D6":"#FF9500"}>{e.type}</Pill>
-                  </div>
-                ))}
+              <div style={{borderRadius:12,border:"1px dashed #DDD",padding:16,textAlign:"center"}}>
+                <span style={{fontSize:9,color:"#CCC",fontFamily:mn}}>実データ連携予定</span>
               </div>
             </Section>
 
