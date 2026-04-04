@@ -176,6 +176,7 @@ const sn = "'Outfit',sans-serif";
 const dmSans = "'DM Sans',sans-serif";
 
 const COMMODITY_URL = "https://hiroki-ikkyu.github.io/ikkyu-capital/data/commodities/daily-prices.json";
+const ALERTS_URL = "https://hiroki-ikkyu.github.io/ikkyu-capital/data/alerts/daily-alerts.json";
 const COMMODITY_ORDER = ["copper","gold","wti","brent","usdjpy"];
 
 const fmtCommodityVal = (key, v) => {
@@ -539,6 +540,7 @@ function App() {
   const [cryptoFG,setCryptoFG] = useState(CFG_FALLBACK);
   const [chartOpen,setChartOpen] = useState({fg:false,cfg:false});
   const [commoditiesData,setCommoditiesData] = useState(null);
+  const [alertsPayload,setAlertsPayload] = useState(null);
   const [commodityOpen,setCommodityOpen] = useState({copper:false,gold:false,wti:false,brent:false,usdjpy:false});
   const [marketComment,setMarketComment] = useState(null);
   const [mcOpen,setMcOpen] = useState(false);
@@ -559,6 +561,10 @@ function App() {
         setCommoditiesData(hasAny ? d : null);
       })
       .catch(()=>{ setCommoditiesData(null); });
+    fetch(ALERTS_URL)
+      .then((r)=>{ if(!r.ok) throw new Error("alerts"); return r.json(); })
+      .then((d)=>setAlertsPayload(d))
+      .catch(()=>setAlertsPayload({ alerts: [] }));
     // Fetch latest Morning Brief
     const today = new Date();
     const tryDates = [];
@@ -693,6 +699,59 @@ function App() {
               </div>
               {chartOpen.fg&&<SentimentExpandChart data={fearGreed} label="FEAR & GREED"/>}
               {chartOpen.cfg&&<SentimentExpandChart data={cryptoFG} label="CRYPTO F&G"/>}
+            </Section>
+
+            <Section title="Alerts" topGap={18}>
+              {alertsPayload === null ? (
+                <div style={{ fontSize: 11, color: "#BBB", fontFamily: mn, padding: "4px 0" }}>Loading…</div>
+              ) : (() => {
+                const raw = alertsPayload.alerts;
+                const list = Array.isArray(raw) ? raw.filter((a) => a.severity === "high" || a.severity === "medium") : [];
+                if (list.length === 0) {
+                  return (
+                    <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #EDEDED", padding: "14px 16px", fontSize: 13, fontWeight: 600, color: "#34C759", fontFamily: dmSans }}>
+                      ✅ 異常なし
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {list.map((a) => {
+                      const isHigh = a.severity === "high";
+                      const chg = Number(a.change_pct);
+                      const sign = chg > 0 ? "+" : "";
+                      const pad = isHigh ? "14px 16px" : "10px 12px";
+                      const titleSz = isHigh ? 15 : 12;
+                      const impactSz = isHigh ? 12 : 10;
+                      const bg = isHigh ? "#FEF2F2" : "#FFF7ED";
+                      const borderCol = isHigh ? "#FECACA" : "#FED7AA";
+                      const leftCol = isHigh ? "#DC2626" : "#EA580C";
+                      return (
+                        <div
+                          key={a.commodity}
+                          style={{
+                            background: bg,
+                            border: `1px solid ${borderCol}`,
+                            borderLeft: `3px solid ${leftCol}`,
+                            borderRadius: 12,
+                            padding: pad,
+                            fontFamily: dmSans,
+                          }}
+                        >
+                          <div style={{ fontSize: titleSz, fontWeight: 700, color: "#1D1D1F", lineHeight: 1.35 }}>
+                            {a.price_alert}{" "}
+                            <span style={{ fontWeight: 600 }}>{a.name}</span>{" "}
+                            <span style={{ fontFamily: mn, fontWeight: 700 }}>{sign}{Number.isFinite(chg) ? chg.toFixed(2) : "—"}%</span>
+                          </div>
+                          {a.impact && (
+                            <div style={{ marginTop: 8, fontSize: impactSz, color: "#57534E", lineHeight: 1.45 }}>{a.impact}</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </Section>
 
             {commoditiesData && (
