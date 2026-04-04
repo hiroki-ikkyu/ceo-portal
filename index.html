@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#111111">
 <link rel="manifest" href="manifest.json">
 <title>CEO Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 body{margin:0;-webkit-font-smoothing:antialiased;font-family:'Outfit',sans-serif}
 *{box-sizing:border-box}
@@ -173,6 +173,15 @@ const FIXED_APPS = [
 
 const mn = "'JetBrains Mono','DM Mono',monospace";
 const sn = "'Outfit',sans-serif";
+const dmSans = "'DM Sans',sans-serif";
+
+const COMMODITY_URL = "https://hiroki-ikkyu.github.io/ikkyu-capital/data/commodities/daily-prices.json";
+const COMMODITY_ORDER = ["copper","gold","wti","brent","usdjpy"];
+
+const fmtCommodityVal = (key, v) => {
+  if (v == null || Number.isNaN(v)) return "—";
+  return key === "copper" ? Number(v).toFixed(4) : Number(v).toFixed(2);
+};
 
 const fmtUpdated = (ts) => {
   if (!ts) return '';
@@ -219,6 +228,64 @@ const FearGreedGauge = ({value}) => {
         <circle cx="50" cy="50" r="3" fill={color}/>
       </svg>
       <div style={{position:"absolute",bottom:0,left:0,right:0,textAlign:"center"}}><span style={{fontSize:13,fontWeight:700,fontFamily:mn,color}}>{value}</span></div>
+    </div>
+  );
+};
+
+const CommodityExpandChart = ({data, label, commodityKey}) => {
+  const history = data.history || [];
+  const last30 = history.slice(-30);
+  const n = last30.length;
+  const W = 364;
+  const H = 88;
+  const vals = n ? last30.map((d) => d.value) : [];
+  const mi = n ? Math.min(...vals) : 0;
+  const mx = n ? Math.max(...vals) : 1;
+  const r = mx - mi || 1;
+  const gx = (i) => (n <= 1 ? W / 2 : (i / (n - 1)) * W);
+  const gy = (v) => H - ((v - mi) / r) * H;
+  const pts = n
+    ? last30.map((d, i) => `${gx(i).toFixed(1)},${gy(d.value).toFixed(1)}`).join(" ")
+    : "";
+  const uptrend = data.ma20 > data.ma60;
+  const flatMa = data.ma20 === data.ma60;
+  return (
+    <div
+      style={{
+        background: "#FAFAF8",
+        borderTop: "1px solid #F3F3F1",
+        padding: "10px 12px 12px",
+        animation: "fadeInChart 0.3s ease",
+        overflow: "hidden",
+        fontFamily: dmSans,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 8 }}>
+        <div style={{ fontSize: 9, color: "#AAA", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>{label}</div>
+        <div style={{ textAlign: "right", fontSize: 9, color: "#888", lineHeight: 1.4 }}>
+          <div>
+            <span style={{ color: "#AAA" }}>MA20 </span>
+            <span style={{ fontFamily: mn, fontWeight: 600 }}>{fmtCommodityVal(commodityKey, data.ma20)}</span>
+          </div>
+          <div>
+            <span style={{ color: "#AAA" }}>MA60 </span>
+            <span style={{ fontFamily: mn, fontWeight: 600 }}>{fmtCommodityVal(commodityKey, data.ma60)}</span>
+          </div>
+        </div>
+      </div>
+      <div style={{ fontSize: 9, color: flatMa ? "#888" : uptrend ? "#34C759" : "#FF3B30", marginBottom: 6 }}>
+        {flatMa ? "📊 Flat" : uptrend ? "📈 Uptrend" : "📉 Downtrend"}
+      </div>
+      {!n && <div style={{ fontSize: 10, color: "#CCC", fontFamily: mn, padding: "12px 0", textAlign: "center" }}>No data</div>}
+      {n > 0 && (
+        <svg width="100%" height="100" viewBox={`0 0 ${W} ${H + 8}`} preserveAspectRatio="none" style={{ display: "block" }}>
+          <polyline points={pts} fill="none" stroke="#888" strokeWidth="0.5" strokeLinejoin="round" strokeLinecap="round" />
+          {last30[n - 1] && (
+            <circle cx={gx(n - 1).toFixed(1)} cy={gy(last30[n - 1].value).toFixed(1)} r="1.4" fill="#1D1D1F" />
+          )}
+        </svg>
+      )}
+      <div style={{ fontSize: 8, color: "#AAA", marginTop: 2 }}>30-day sparkline</div>
     </div>
   );
 };
@@ -471,6 +538,8 @@ function App() {
   const [fearGreed,setFearGreed] = useState(FG_FALLBACK);
   const [cryptoFG,setCryptoFG] = useState(CFG_FALLBACK);
   const [chartOpen,setChartOpen] = useState({fg:false,cfg:false});
+  const [commoditiesData,setCommoditiesData] = useState(null);
+  const [commodityOpen,setCommodityOpen] = useState({copper:false,gold:false,wti:false,brent:false,usdjpy:false});
   const [marketComment,setMarketComment] = useState(null);
   const [mcOpen,setMcOpen] = useState(false);
 
@@ -483,6 +552,13 @@ function App() {
       .then(r=>r.json())
       .then(d=>setCryptoFG({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[],updated:d.updated||''}))
       .catch(()=>{});
+    fetch(COMMODITY_URL)
+      .then((r)=>{ if(!r.ok) throw new Error("commodities"); return r.json(); })
+      .then((d)=>{
+        const hasAny = COMMODITY_ORDER.some((id)=>d.commodities && d.commodities[id] && !d.commodities[id].error);
+        setCommoditiesData(hasAny ? d : null);
+      })
+      .catch(()=>{ setCommoditiesData(null); });
     // Fetch latest Morning Brief
     const today = new Date();
     const tryDates = [];
@@ -618,6 +694,60 @@ function App() {
               {chartOpen.fg&&<SentimentExpandChart data={fearGreed} label="FEAR & GREED"/>}
               {chartOpen.cfg&&<SentimentExpandChart data={cryptoFG} label="CRYPTO F&G"/>}
             </Section>
+
+            {commoditiesData && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 600, color: "#AAA", letterSpacing: 0.5, textTransform: "uppercase", fontFamily: dmSans }}>Market Data</div>
+                  <div style={{ flex: 1, height: 1, background: "#E8E8E8" }} />
+                </div>
+                <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #EDEDED", overflow: "hidden", fontFamily: dmSans }}>
+                  {COMMODITY_ORDER.filter((id)=>{
+                    const c = commoditiesData.commodities[id];
+                    return c && !c.error;
+                  }).map((id, idx) => {
+                    const c = commoditiesData.commodities[id];
+                    const open = commodityOpen[id];
+                    const chg = Number(c.change_pct);
+                    const chgSafe = Number.isFinite(chg) ? chg : 0;
+                    const chgColor = chgSafe > 0 ? "#34C759" : chgSafe < 0 ? "#FF3B30" : "#888";
+                    const sign = chgSafe > 0 ? "+" : "";
+                    return (
+                      <div key={id}>
+                        <div
+                          onClick={()=>setCommodityOpen((o)=>({ ...o, [id]: !o[id] }))}
+                          style={{
+                            padding: "10px 12px",
+                            cursor: "pointer",
+                            borderTop: idx > 0 ? "1px solid #F3F3F1" : "none",
+                            WebkitTapHighlightColor: "transparent",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <div style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 600, color: "#1D1D1F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: mn, color: "#1D1D1F", flexShrink: 0 }}>
+                              {fmtCommodityVal(id, c.current)} <span style={{ fontSize: 10, fontWeight: 500, color: "#888" }}>{c.unit}</span>
+                            </div>
+                            <div style={{ fontSize: 12, fontWeight: 700, fontFamily: mn, color: chgColor, flexShrink: 0, minWidth: 52, textAlign: "right" }}>{sign}{chgSafe.toFixed(2)}%</div>
+                            <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                              <svg width="7" height="7" viewBox="0 0 10 10" style={{ display: "block", transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.25s" }}>
+                                <polygon points="2,1 8,5 2,9" fill="#CCCCCC" />
+                              </svg>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 9, color: "#BBB", fontFamily: mn, marginTop: 4, paddingLeft: 0 }}>
+                            prev {fmtCommodityVal(id, c.prev_close)} · 1w ago {fmtCommodityVal(id, c.week_ago)}
+                          </div>
+                        </div>
+                        {open && (
+                          <CommodityExpandChart data={c} label={c.name} commodityKey={id} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <Section title="Market Comments" topGap={18}>
               <div style={{background:"#fff",borderRadius:12,border:"1px solid #EDEDED",overflow:"hidden"}}>
