@@ -475,11 +475,11 @@ function App() {
   const [mcOpen,setMcOpen] = useState(false);
 
   useEffect(()=>{
-    fetch("https://hiroki-ikkyu.github.io/Datawarehouse/Data/Sentiment/fear-greed.json")
+    fetch("https://hiroki-ikkyu.github.io/ikkyu-capital/data/sentiment/fear-greed.json")
       .then(r=>r.json())
       .then(d=>setFearGreed({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[],updated:d.updated||''}))
       .catch(()=>{});
-    fetch("https://hiroki-ikkyu.github.io/Datawarehouse/Data/Sentiment/crypto-fear-greed.json")
+    fetch("https://hiroki-ikkyu.github.io/ikkyu-capital/data/sentiment/crypto-fear-greed.json")
       .then(r=>r.json())
       .then(d=>setCryptoFG({value:d.current.value,label:d.current.label,prev:d.prev_close,weekAgo:d.week_ago,history:d.history||[],updated:d.updated||''}))
       .catch(()=>{});
