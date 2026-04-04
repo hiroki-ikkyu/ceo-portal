@@ -177,6 +177,7 @@ const dmSans = "'DM Sans',sans-serif";
 
 const COMMODITY_URL = "https://hiroki-ikkyu.github.io/ikkyu-capital/data/commodities/daily-prices.json";
 const ALERTS_URL = "https://hiroki-ikkyu.github.io/ikkyu-capital/data/alerts/daily-alerts.json";
+const TODAYS_CALL_URL = "https://hiroki-ikkyu.github.io/ikkyu-capital/data/morning-brief/todays-call.json";
 const COMMODITY_ORDER = ["copper","gold","wti","brent","usdjpy"];
 
 const fmtCommodityVal = (key, v) => {
@@ -191,6 +192,18 @@ const fmtUpdated = (ts) => {
   const p = {};
   parts.forEach(({type,value}) => p[type] = value);
   return `${p.month}/${p.day} ${p.hour}:${p.minute}`;
+};
+
+const renderTodaysCallBody = (text) => {
+  const lines = String(text || "").split("\n");
+  return lines.map((line, li) => (
+    <React.Fragment key={li}>
+      {li > 0 && <br />}
+      {line.split(/(Today's Call)/g).map((part, pi) =>
+        part === "Today's Call" ? <strong key={pi}>{part}</strong> : <span key={pi}>{part}</span>
+      )}
+    </React.Fragment>
+  ));
 };
 
 const Spark = ({data,color,w=56,h=20}) => {
@@ -542,6 +555,7 @@ function App() {
   const [commoditiesData,setCommoditiesData] = useState(null);
   const [alertsPayload,setAlertsPayload] = useState(null);
   const [commodityOpen,setCommodityOpen] = useState({copper:false,gold:false,wti:false,brent:false,usdjpy:false});
+  const [todaysCall,setTodaysCall] = useState(null);
   const [marketComment,setMarketComment] = useState(null);
   const [mcOpen,setMcOpen] = useState(false);
 
@@ -565,6 +579,18 @@ function App() {
       .then((r)=>{ if(!r.ok) throw new Error("alerts"); return r.json(); })
       .then((d)=>setAlertsPayload(d))
       .catch(()=>setAlertsPayload({ alerts: [] }));
+    fetch(TODAYS_CALL_URL)
+      .then((r)=>{ if(!r.ok) throw new Error("todays-call"); return r.json(); })
+      .then((d)=>{
+        const raw = d.todays_call;
+        const body = typeof raw === "string" ? raw : raw == null ? "" : String(raw);
+        if (!body.trim() || body.includes("APIキー未設定")) {
+          setTodaysCall(null);
+          return;
+        }
+        setTodaysCall({ updated: d.updated || "", body });
+      })
+      .catch(()=>{ setTodaysCall(null); });
     // Fetch latest Morning Brief
     const today = new Date();
     const tryDates = [];
@@ -665,6 +691,23 @@ function App() {
         <div style={{padding:"0 16px"}}>
 
           {view==="brief" && <React.Fragment>
+            {todaysCall && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 600, color: "#AAA", letterSpacing: 0.5, textTransform: "uppercase", fontFamily: dmSans }}>Today's Call</div>
+                  <div style={{ flex: 1, height: 1, background: "#E8E8E8" }} />
+                </div>
+                <div style={{ position: "relative", background: "#F0F5FF", border: "1px solid #BFDBFE", borderRadius: 12, padding: "14px 14px 14px", fontFamily: dmSans }}>
+                  {todaysCall.updated && (
+                    <div style={{ position: "absolute", top: 12, right: 12, fontSize: 9, color: "#AAA", fontFamily: mn }}>{fmtUpdated(todaysCall.updated)}</div>
+                  )}
+                  <div style={{ fontSize: 13, lineHeight: 1.7, color: "#1d1d1f", paddingRight: todaysCall.updated ? 72 : 0 }}>
+                    {renderTodaysCallBody(todaysCall.body)}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <Section title="Sentiment" topGap={18}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {[
